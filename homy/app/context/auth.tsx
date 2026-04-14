@@ -1,4 +1,4 @@
-import { useRootNavigation, useRouter, useSegments } from "expo-router";
+import { useNavigationContainerRef, useRouter, useSegments } from "expo-router";
 import React, { useContext, useEffect, useState } from "react";
 import { account } from "../lib/appwrite";
 import { Models, ID } from "react-native-appwrite";
@@ -44,7 +44,7 @@ export function Provider(props: ProviderProps) {
 
     // checking that navigation is all good;
     const [isNavigationReady, setNavigationReady] = useState(false);
-    const rootNavigation = useRootNavigation();
+    const rootNavigation = useNavigationContainerRef();
 
     useEffect(() => {
       const unsubscribe = rootNavigation?.addListener("state", (event) => {
