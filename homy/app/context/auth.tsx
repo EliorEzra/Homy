@@ -32,7 +32,7 @@ const AuthContext = React.createContext<AuthContextValue | undefined>(
   undefined
 );
 
-export function Provider(props: ProviderProps) {
+export function AuthProvider(props: ProviderProps) {
   const [user, setAuth] =
     React.useState<Models.User<Models.Preferences> | null>(null);
   const [authInitialized, setAuthInitialized] = React.useState<boolean>(false);
@@ -75,7 +75,7 @@ export function Provider(props: ProviderProps) {
         router.push({pathname: "/sign-in"});
       } else if (user && inAuthGroup) {
         // Redirect away from the sign-in page.
-        router.push("/");
+        router.push("/(tabs)/home");
       }
     }, [user, segments, authInitialized, isNavigationReady]);
   };

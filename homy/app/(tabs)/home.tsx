@@ -1,17 +1,14 @@
 import { StyleSheet } from 'react-native';
-
-import EditScreenInfo from '@/components/edit-screen-info';
 import { ThemedText as Text} from '@/components/themed-text';
 import { ThemedView as View} from '@/components/themed-view';
 import { useAuth } from '../context/auth';
 
-export default function TabOneScreen() {
+export default function HomeScreen() {
   const { signOut, user } = useAuth();
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
+      <Text style={styles.title}>Homy app</Text>
       <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
       <Text onPress={() => signOut()}>Sign Out - {user?.email}</Text>
 
     </View>
