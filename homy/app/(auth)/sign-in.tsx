@@ -1,13 +1,15 @@
 import {
   Text,
   TextInput,
-  View,
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
 import { useAuth } from "../context/auth";
 import { Stack, useRouter } from "expo-router";
 import { useRef } from "react";
+import { ThemedInput } from "@/components/themed-input";
+import { ThemedText } from '@/components/themed-text';
+import { MainView, ThemedView } from '@/components/themed-view';
 
 export default function SignIn() {
   const { signIn } = useAuth();
@@ -18,31 +20,30 @@ export default function SignIn() {
   return (
     <>
       <Stack.Screen options={{ title: "sign up", headerShown: false }} />
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <View>
+      <MainView>
+        <ThemedView>
           <Text style={styles.label}>Email</Text>
-          <TextInput
+          <ThemedInput
+            type="email"
             placeholder="email"
             autoCapitalize="none"
             nativeID="email"
             onChangeText={(text) => {
               emailRef.current = text;
             }}
-            style={styles.textInput}
           />
-        </View>
-        <View>
+        </ThemedView>
+        <ThemedView>
           <Text style={styles.label}>Password</Text>
-          <TextInput
+          <ThemedInput
             placeholder="password"
-            secureTextEntry={true}
+            type="password"
             nativeID="password"
             onChangeText={(text) => {
               passwordRef.current = text;
             }}
-            style={styles.textInput}
           />
-        </View>
+        </ThemedView>
 
         <TouchableOpacity
           onPress={async () => {
@@ -59,17 +60,17 @@ export default function SignIn() {
           }}
           style={styles.button}
         >
-          <Text style={styles.buttonText}>Login</Text>
+          <ThemedText style={styles.buttonText}>Login</ThemedText>
         </TouchableOpacity>
-        <View style={{ marginTop: 32 }}>
-          <Text
+        <ThemedView style={{ marginTop: 32 }}>
+          <ThemedText
             style={{ fontWeight: "500" }}
             onPress={() => router.push("/sign-up")}
           >
             Click Here To Create A New Account
-          </Text>
-        </View>
-      </View>
+          </ThemedText>
+        </ThemedView>
+      </MainView>
     </>
   );
 }
@@ -80,13 +81,7 @@ const styles = StyleSheet.create({
     color: "#455fff",
   },
   textInput: {
-    width: 250,
-    borderWidth: 1,
-    borderRadius: 4,
-    borderColor: "#455fff",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginBottom: 16,
+    
   },
   button: {
     backgroundColor: "blue",

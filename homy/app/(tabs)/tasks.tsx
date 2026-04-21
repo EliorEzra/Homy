@@ -1,22 +1,17 @@
 import { StyleSheet } from 'react-native';
-import { ThemedText as Text} from '@/components/themed-text';
-import { ThemedView as View} from '@/components/themed-view';
+import { ThemedText } from '@/components/themed-text';
+import { MainView, ThemedView } from '@/components/themed-view';
 
 export default function HomeScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Homy Tasks</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-    </View>
+    <MainView>
+      <ThemedText type="title">Homy Tasks</ThemedText>
+      <ThemedView style={styles.separator}/>
+    </MainView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
