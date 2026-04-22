@@ -44,8 +44,8 @@ export default function SignIn() {
             }}
           />
         </ThemedView>
-
         <TouchableOpacity
+        // change to pressable
           onPress={async () => {
             const { data, error } = await signIn(
               emailRef.current,
@@ -55,7 +55,7 @@ export default function SignIn() {
               router.replace("/(tabs)/home");
             } else {
               console.log(error);
-              // Alert.alert("Login Error", resp.error?.message);
+              //Alert.alert("Login Error", resp.error?.message);
             }
           }}
           style={styles.button}
