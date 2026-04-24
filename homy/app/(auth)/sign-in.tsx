@@ -1,14 +1,14 @@
 import {
   Text,
-  TextInput,
   StyleSheet,
-  TouchableOpacity,
+  Alert
 } from "react-native";
 import { useAuth } from "../context/auth";
 import { Stack, useRouter } from "expo-router";
 import { useRef } from "react";
 import { ThemedInput } from "@/components/themed-input";
 import { ThemedText } from '@/components/themed-text';
+import { ThemedButton } from '@/components/themed-button'
 import { MainView, ThemedView } from '@/components/themed-view';
 
 export default function SignIn() {
@@ -44,8 +44,7 @@ export default function SignIn() {
             }}
           />
         </ThemedView>
-        <TouchableOpacity
-        // change to pressable
+        <ThemedButton
           onPress={async () => {
             const { data, error } = await signIn(
               emailRef.current,
@@ -55,13 +54,12 @@ export default function SignIn() {
               router.replace("/(tabs)/home");
             } else {
               console.log(error);
-              //Alert.alert("Login Error", resp.error?.message);
+              Alert.alert("Login Error", error?.message);
             }
           }}
-          style={styles.button}
-        >
-          <ThemedText style={styles.buttonText}>Login</ThemedText>
-        </TouchableOpacity>
+          title="Login"
+          textStyle={styles.buttonText}
+        />
         <ThemedView style={{ marginTop: 32 }}>
           <ThemedText
             style={{ fontWeight: "500" }}
@@ -79,16 +77,6 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: 4,
     color: "#455fff",
-  },
-  textInput: {
-    
-  },
-  button: {
-    backgroundColor: "blue",
-    padding: 10,
-    width: 250,
-    borderRadius: 5,
-    marginTop: 16,
   },
   buttonText: {
     color: "white",

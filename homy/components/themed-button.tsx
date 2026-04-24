@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, Text, StyleSheet, TextStyle, StyleProp, ViewStyle type PressableProps } from "react-native";
+import { Pressable, Text, StyleSheet, TextStyle, StyleProp, ViewStyle, type PressableProps } from "react-native";
 import { spacing, typography } from '@/theme/theme'
 import { useThemeColor } from "@/hooks/use-theme-color";
 
@@ -10,11 +10,13 @@ export type ButtonProps = PressableProps & {
   disabled?: boolean;
   lightColor?: string;
   darkColor?: string;
+  onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export default function ThemedButton({
+export function ThemedButton({
   title,
+  onPress,
   size = "md",
   style,
   lightColor,
@@ -31,6 +33,7 @@ export default function ThemedButton({
 
   return (
     <Pressable
+      onPress={onPress}
       disabled={disabled}
       style={[
         {
@@ -48,7 +51,6 @@ export default function ThemedButton({
           typography.body.md,
           {
             color: textColor,
-            fontWeight: "600",
           },
           textStyle,
         ]}

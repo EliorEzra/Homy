@@ -1,13 +1,14 @@
 import {
-  Text,
-  View,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
+  Alert
 } from "react-native";
 import { useAuth } from "../context/auth";
 import { Stack, useRouter } from "expo-router";
 import { useRef } from "react";
+import { ThemedView, MainView } from "@/components/themed-view";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedButton } from "@/components/themed-button";
+import { ThemedInput } from "@/components/themed-input";
 
 export default function SignUp() {
   const { signUp } = useAuth();
@@ -20,45 +21,43 @@ export default function SignUp() {
   return (
     <>
       <Stack.Screen options={{ title: "sign up", headerShown: false }} />
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <View>
-          <Text style={styles.label}>UserName</Text>
-          <TextInput
+      <MainView>
+        <ThemedView>
+          <ThemedText style={styles.label}>UserName</ThemedText>
+          <ThemedInput
             placeholder="Username"
             autoCapitalize="none"
             nativeID="userName"
             onChangeText={(text) => {
               userNameRef.current = text;
             }}
-            style={styles.textInput}
           />
-        </View>
-        <View>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
+        </ThemedView>
+        <ThemedView>
+          <ThemedText style={styles.label}>Email</ThemedText>
+          <ThemedInput
             placeholder="email"
             autoCapitalize="none"
             nativeID="email"
+            type="email"
             onChangeText={(text) => {
               emailRef.current = text;
             }}
-            style={styles.textInput}
           />
-        </View>
-        <View>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
+        </ThemedView>
+        <ThemedView>
+          <ThemedText style={styles.label}>Password</ThemedText>
+          <ThemedInput
             placeholder="password"
-            secureTextEntry={true}
             nativeID="password"
+            type="password"
             onChangeText={(text) => {
               passwordRef.current = text;
             }}
-            style={styles.textInput}
           />
-        </View>
+        </ThemedView>
 
-        <TouchableOpacity
+        <ThemedButton
           onPress={async () => {
             const { data, error } = await signUp(
               emailRef.current,
@@ -69,23 +68,20 @@ export default function SignUp() {
               router.replace("/(tabs)/home");
             } else {
               console.log(error);
-              // Alert.alert("Login Error", resp.error?.message);
+              Alert.alert("Error signing up", error?.message);
             }
           }}
-          style={styles.button}
-        >
-          <Text style={styles.buttonText}>Create Account</Text>
-        </TouchableOpacity>
-
-        <View style={{ marginTop: 32 }}>
-          <Text
+          title="Create Account"
+        />
+        <ThemedView style={{ marginTop: 32 }}>
+          <ThemedText
             style={{ fontWeight: "500" }}
             onPress={() => router.replace("/sign-in")}
           >
             Click Here To Return To Sign In Page
-          </Text>
-        </View>
-      </View>
+          </ThemedText>
+        </ThemedView>
+      </MainView>
     </>
   );
 }
@@ -94,26 +90,5 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: 4,
     color: "#455fff",
-  },
-  textInput: {
-    width: 250,
-    borderWidth: 1,
-    borderRadius: 4,
-    borderColor: "#455fff",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: "blue",
-    padding: 10,
-    width: 250,
-    borderRadius: 5,
-    marginTop: 16,
-  },
-  buttonText: {
-    color: "white",
-    textAlign: "center",
-    fontSize: 16,
-  },
+  }
 });
