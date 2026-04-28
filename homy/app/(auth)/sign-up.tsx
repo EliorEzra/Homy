@@ -2,7 +2,7 @@ import {
   StyleSheet,
   Alert
 } from "react-native";
-import { useAuth } from "../context/auth";
+import { useAuth } from "@/context/auth";
 import { Stack, useRouter } from "expo-router";
 import { useRef } from "react";
 import { ThemedView, MainView } from "@/components/themed-view";
