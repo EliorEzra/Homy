@@ -1,3 +1,7 @@
+/**
+ * File containing icons for the bottom nav
+ */
+
 import { Home, ListTodo } from 'lucide-react-native'
 
 

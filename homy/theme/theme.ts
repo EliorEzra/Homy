@@ -4,32 +4,39 @@
  */
 
 import { Platform } from 'react-native';
+import { darkModePalette, lightModePalette } from './palette';
+import { typography } from './typography';
+import { spacing } from './spacing';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+export { typography, spacing }
 
+// Change the rest to use the palettes
 export const Colors = {
   light: {
     text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-    inputBorderSelected: '#3c50d1',
+    background: lightModePalette.surface,
+    icon: lightModePalette.primary[200],
+    tabIconDefault: lightModePalette.neutral[600],
+    inputBorderSelected: lightModePalette.secondary.DEFAULT,
     inputBorder: "#999a9b",
     inputBackground: '#b9bbbd',
+    buttonBackground: lightModePalette.primary.DEFAULT,
+    buttonTextColor: lightModePalette.neutral[100],
+    disabledButtonBackground: lightModePalette.neutral[300],
+    disabledButtonTextColor: lightModePalette.neutral[600],
   },
   dark: {
     text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-    inputBorderSelected: '#3c50d1',
+    background: darkModePalette.surface,
+    icon: darkModePalette.primary[200],
+    tabIconDefault: darkModePalette.neutral[600],
+    inputBorderSelected: darkModePalette.secondary.DEFAULT,
     inputBorder: "#878c8f",
     inputBackground: '#444647',
+    buttonBackground: darkModePalette.primary.DEFAULT,
+    buttonTextColor: darkModePalette.neutral[100],
+    disabledButtonBackground: darkModePalette.neutral[300],
+    disabledButtonTextColor: darkModePalette.neutral[600],
   },
 };
 

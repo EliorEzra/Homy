@@ -1,6 +1,7 @@
 import { StyleSheet, TextInput, type TextInputProps } from "react-native";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { useState } from "react";
+import { spacing, typography } from "@/theme/theme";
 
 export type ThemedInputProps = TextInputProps & {
   lightColor?: string;
@@ -50,12 +51,13 @@ const styles = StyleSheet.create({
     width: 250,
     borderWidth: 1,
     borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
     marginBottom: 16,
     fontSize: 16,
     lineHeight: 24,
-    
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 44,
+    ...typography.body.md,
   },
   text: {
     

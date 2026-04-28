@@ -1,6 +1,6 @@
 import { useNavigationContainerRef, useRouter, useSegments } from "expo-router";
 import React, { useContext, useEffect, useState } from "react";
-import { account } from "../lib/appwrite";
+import { account } from "@/lib/appwrite";
 import { Models, ID } from "react-native-appwrite";
 
 // Define the AuthContextValue interface
@@ -164,7 +164,6 @@ export function AuthProvider(props: ProviderProps) {
             email: email, 
             password: password
         })
-
       // get Account information for the user
       const user = await account.get();
       setAuth(user);
