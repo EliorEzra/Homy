@@ -16,6 +16,7 @@ export default function SignUp() {
 
   const emailRef = useRef("");
   const passwordRef = useRef("");
+  const confirmPasswordRef = useRef("");
   const userNameRef = useRef("");
 
   return (
@@ -56,18 +57,48 @@ export default function SignUp() {
             }}
           />
         </ThemedView>
+        <ThemedView>
+          <ThemedText style={styles.label}>Confirm Password</ThemedText>
+          <ThemedInput
+            placeholder="confirm password"
+            nativeID="confirmPassword"
+            type="password"
+            onChangeText={(text) => {
+              confirmPasswordRef.current = text;
+            }}
+          />
+        </ThemedView>
 
         <ThemedButton
           onPress={async () => {
+            if (!emailRef.current || !passwordRef.current || !userNameRef.current) {
+              Alert.alert("Error", "Please fill in all fields");
+              return;
+            }
+            if (passwordRef.current !== confirmPasswordRef.current) {
+              Alert.alert("Error", "Passwords do not match. Please try again.");
+              return;
+            }
+            if (passwordRef.current.length < 8) {
+              Alert.alert("Error", "Password must be at least 8 characters long");
+              return;
+            }
             const { data, error } = await signUp(
               emailRef.current,
               passwordRef.current,
               userNameRef.current
             );
             if (data) {
-              router.replace("/(tabs)/home");
+              // Redirect to email verification screen
+              router.push({
+                pathname: "/verify-email",
+                params: {
+                  userId: data.userId,
+                  email: data.email,
+                  password: passwordRef.current,
+                },
+              });
             } else {
-              console.log(error);
               Alert.alert("Error signing up", error?.message);
             }
           }}
