@@ -59,14 +59,13 @@ const HouseContext = React.createContext<HouseContextValue | undefined>(
 
 export function HouseProvider(props: ProviderProps) {
     const [house, setHouse] = useState<Models.Membership | null>(null);
-    const {user} = useAuth()
-    if (!user) {
-        // TODO: allow users to join houses before creating an account
-        throw new Error("Log in before accepting the house invitation")
-    }
 
     async function createHouse(name: string, roles?: string[]): Promise<CreateHouseResponse> {
+        const {user} = useAuth()
         try {
+            if (user === null) {
+                throw new Error("Log in before creating a ne whouse")
+            }
             if(house != null) {
                 throw new Error("Cannot create new house while a member of existing house");
             }
@@ -77,7 +76,7 @@ export function HouseProvider(props: ProviderProps) {
             })
             const memberships = await team.listMemberships({
                 teamId: response.$id,
-                queries: [Query.equal('userId', user!.$id)],
+                queries: [Query.equal('userId', user.$id)],
                 total: true
             })
             if (memberships.total != 1) {
@@ -149,11 +148,16 @@ export function HouseProvider(props: ProviderProps) {
     }
 
     async function acceptHouseInvite(teamId: string, secret: string): Promise<AcceptHouseInviteResponse> {
+        const {user} = useAuth()
         try {
+            if (!user) {
+                // TODO: allow users to join houses before creating an account
+                throw new Error("Log in before accepting the house invitation")
+            }
             const response = await team.updateMembershipStatus({
                 teamId: teamId,
                 membershipId: ID.unique(),
-                userId: user!.$id,
+                userId: user.$id,
                 secret: secret
             })
             setHouse(response)
@@ -204,7 +208,11 @@ export function HouseProvider(props: ProviderProps) {
 
     useEffect(() => {
         (async () => {
+          const {user} = useAuth()
           try {
+            if (user === null) {
+                throw new Error("User must be logged in before trying to get house")
+            }
             const houses = await team.list({total: true});
             if (houses.total > 1) {
                 throw new Error("User belongs to more than 1 house");
@@ -214,7 +222,7 @@ export function HouseProvider(props: ProviderProps) {
                 const house = houses.teams[0]
                 const houseMembers = await team.listMemberships({
                     teamId: house.$id,
-                    queries: [Query.equal('userId', user!.$id)]
+                    queries: [Query.equal('userId', user.$id)]
                 })
                 setHouse(houseMembers.memberships[0]);
             }
