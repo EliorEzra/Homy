@@ -101,7 +101,7 @@ export function HouseProvider(props: ProviderProps) {
                 throw new Error("Cannot invite new users to house without being in a house")
             }
             const response = await team.createMembership({
-                teamId: house.$id,
+                teamId: house.teamId,
                 roles: roles ? roles : [],
                 email: email
             })
@@ -119,7 +119,7 @@ export function HouseProvider(props: ProviderProps) {
             if (!house) {
                 throw new Error("Cannot get users in the house without being in a house")
             }
-            const response = await team.listMemberships({teamId: house.$id})
+            const response = await team.listMemberships({teamId: house.teamId})
             return {data: response, error: undefined}
         } catch (error) {
             return {
