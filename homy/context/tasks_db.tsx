@@ -142,6 +142,18 @@ export function TasksProvider(props: ProviderProps) {
     }
   }
 
+  useEffect(() => {
+      (async () => {
+        try {
+          const response = await getTasks();
+        } catch (error) {
+          console.log("error", error);
+          setTasks(null);
+        }
+        console.log("initialize ", tasks);
+      })();
+    }, []);
+
   return (
     <TasksContext.Provider
       value={{
