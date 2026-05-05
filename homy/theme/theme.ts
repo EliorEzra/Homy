@@ -7,8 +7,10 @@ import { Platform } from 'react-native';
 import { darkModePalette, lightModePalette } from './palette';
 import { typography } from './typography';
 import { spacing } from './spacing';
+import { radius } from './radius';
+import { shadows } from './shadows';
 
-export { typography, spacing }
+export { typography, spacing, radius, shadows }
 
 // Change the rest to use the palettes
 export const Colors = {
