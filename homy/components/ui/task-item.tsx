@@ -1,10 +1,8 @@
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { ThemedText } from '../themed-text';
-import { ThemedView } from '../themed-view';
+import { Card } from './card';
+import { Body, Caption } from './typography';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
 import { radius } from '@/theme/radius';
-import { shadows } from '@/theme/shadows';
 import { lightModePalette } from '@/theme/palette';
 import { ChevronRight } from 'lucide-react-native';
 
@@ -19,30 +17,37 @@ interface TaskItemProps {
 export function TaskItem({ title, dueTime, completed = false, onPress, onToggle }: TaskItemProps) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <ThemedView style={[styles.card, shadows.sm]}>
-        <TouchableOpacity style={styles.checkbox} onPress={onToggle}>
-          <View
-            style={[
-              styles.checkboxInner,
-              completed && styles.checkboxChecked,
-            ]}
-          >
-            {completed && (
-              <ThemedText style={styles.checkmark}>✓</ThemedText>
-            )}
-          </View>
-        </TouchableOpacity>
-
+      <Card
+        style={styles.taskCard}
+        padding="md"
+        variant="elevated"
+      >
         <View style={styles.content}>
-          <ThemedText
-            style={[
-              styles.title,
-              completed && styles.titleCompleted,
-            ]}
-          >
-            {title}
-          </ThemedText>
-          <ThemedText style={styles.dueTime}>{dueTime}</ThemedText>
+          <TouchableOpacity style={styles.checkbox} onPress={onToggle}>
+            <View
+              style={[
+                styles.checkboxInner,
+                completed && styles.checkboxChecked,
+              ]}
+            >
+              {completed && (
+                <Body color={lightModePalette.neutral[100]} style={{ fontSize: 14 }}>
+                  ✓
+                </Body>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.textContent}>
+            <Body
+              size="md"
+              color={completed ? lightModePalette.neutral[500] : lightModePalette.onSurface}
+              style={completed ? { textDecorationLine: 'line-through' } : {}}
+            >
+              {title}
+            </Body>
+            <Caption color={lightModePalette.onSurfaceVariant}>{dueTime}</Caption>
+          </View>
         </View>
 
         <ChevronRight
@@ -50,22 +55,21 @@ export function TaskItem({ title, dueTime, completed = false, onPress, onToggle 
           color={lightModePalette.onSurfaceVariant}
           strokeWidth={2}
         />
-      </ThemedView>
+      </Card>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  taskCard: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: lightModePalette.surface,
-    borderWidth: 2,
-    borderColor: lightModePalette.outline,
     alignItems: 'center',
     marginBottom: spacing.md,
+  },
+  content: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   checkbox: {
     marginRight: spacing.md,
@@ -83,25 +87,7 @@ const styles = StyleSheet.create({
     backgroundColor: lightModePalette.primary.DEFAULT,
     borderColor: lightModePalette.primary.DEFAULT,
   },
-  checkmark: {
-    color: lightModePalette.neutral[100],
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  content: {
+  textContent: {
     flex: 1,
-  },
-  title: {
-    ...typography.label.lg,
-    color: lightModePalette.onSurface,
-    marginBottom: spacing.xs,
-  },
-  titleCompleted: {
-    color: lightModePalette.neutral[500],
-    textDecorationLine: 'line-through',
-  },
-  dueTime: {
-    ...typography.body.sm,
-    color: lightModePalette.onSurfaceVariant,
   },
 });

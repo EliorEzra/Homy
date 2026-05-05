@@ -1,14 +1,13 @@
 import { StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
-import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
-import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import { lightModePalette } from '@/theme/palette';
 import { TaskItem } from '@/components/ui/task-item';
 import { FilterTabs } from '@/components/ui/filter-tabs';
 import { Badge } from '@/components/ui/badge';
+import { IconButton } from '@/components/ui/icon-button';
+import { Heading, Body } from '@/components/ui/typography';
 import { Menu, Home, Bell, Plus, Filter } from 'lucide-react-native';
 import { useState } from 'react';
 
@@ -58,13 +57,16 @@ export default function TasksScreen() {
     <ThemedView style={styles.container}>
       {/* Top Navigation Bar */}
       <ThemedView style={[styles.header, shadows.sm]}>
-        <TouchableOpacity style={styles.headerIcon}>
-          <Menu size={24} color={lightModePalette.onSurface} />
-        </TouchableOpacity>
+        <IconButton
+          icon={Menu}
+          backgroundColor="transparent"
+          iconColor={lightModePalette.onSurface}
+          size="md"
+        />
 
         <View style={styles.headerCenter}>
           <Home size={24} color={lightModePalette.primary.DEFAULT} />
-          <ThemedText style={styles.headerLogo}>HOMY</ThemedText>
+          <Heading level={3} color={lightModePalette.onSurface}>HOMY</Heading>
         </View>
 
         <View style={styles.headerRight}>
@@ -72,17 +74,18 @@ export default function TasksScreen() {
             <Bell size={24} color={lightModePalette.onSurface} />
             <View style={styles.badge} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.filterIcon}>
-            <Filter size={24} color={lightModePalette.onSurface} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.plusButton,
-              { backgroundColor: lightModePalette.primary.DEFAULT },
-            ]}
-          >
-            <Plus size={24} color={lightModePalette.neutral[100]} />
-          </TouchableOpacity>
+          <IconButton
+            icon={Filter}
+            backgroundColor="transparent"
+            iconColor={lightModePalette.onSurface}
+            size="md"
+          />
+          <IconButton
+            icon={Plus}
+            backgroundColor={lightModePalette.primary.DEFAULT}
+            iconColor={lightModePalette.neutral[100]}
+            size="md"
+          />
         </View>
       </ThemedView>
 
@@ -92,7 +95,9 @@ export default function TasksScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* Page Title */}
-        <ThemedText style={styles.pageTitle}>Tasks</ThemedText>
+        <Heading level={2} color={lightModePalette.onSurface} style={styles.pageTitle}>
+          Tasks
+        </Heading>
 
         {/* Filter Tabs */}
         <FilterTabs
@@ -105,7 +110,9 @@ export default function TasksScreen() {
         {urgentTasks.length > 0 && (
           <ThemedView style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>Urgent</ThemedText>
+              <Heading level={3} color={lightModePalette.onSurface}>
+                Urgent
+              </Heading>
               <Badge
                 label={`${urgentTasks.length} ITEMS`}
                 variant="danger"
@@ -128,7 +135,9 @@ export default function TasksScreen() {
         {normalTasks.length > 0 && (
           <ThemedView style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>Normal</ThemedText>
+              <Heading level={3} color={lightModePalette.onSurface}>
+                Normal
+              </Heading>
               <Badge
                 label={`${normalTasks.length} ITEMS`}
                 variant="primary"
@@ -149,9 +158,9 @@ export default function TasksScreen() {
 
         {tasks.length === 0 && (
           <View style={styles.emptyState}>
-            <ThemedText style={styles.emptyStateText}>
+            <Body color={lightModePalette.onSurfaceVariant} style={styles.emptyStateText}>
               No tasks yet. Create one to get started!
-            </ThemedText>
+            </Body>
           </View>
         )}
 
@@ -175,17 +184,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: lightModePalette.outline,
   },
-  headerIcon: {
-    padding: spacing.sm,
-  },
   headerCenter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  headerLogo: {
-    ...typography.label.lg,
-    color: lightModePalette.onSurface,
   },
   headerRight: {
     flexDirection: 'row',
@@ -205,16 +207,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: lightModePalette.error.DEFAULT,
   },
-  filterIcon: {
-    padding: spacing.sm,
-  },
-  plusButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     flex: 1,
   },
@@ -223,8 +215,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   pageTitle: {
-    ...typography.heading[2],
-    color: lightModePalette.onSurface,
     marginBottom: spacing.lg,
   },
   section: {
@@ -236,18 +226,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  sectionTitle: {
-    ...typography.heading[3],
-    color: lightModePalette.onSurface,
-  },
   emptyState: {
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: spacing.xl,
   },
   emptyStateText: {
-    ...typography.body.md,
-    color: lightModePalette.onSurfaceVariant,
+    textAlign: 'center',
   },
   spacer: {
     height: spacing.xl,

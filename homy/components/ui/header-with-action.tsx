@@ -1,8 +1,7 @@
-import { View, StyleSheet } from 'react-native';
-import { ThemedText } from '../themed-text';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Heading, Body } from './typography';
 import { ThemedView } from '../themed-view';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
 import { lightModePalette } from '@/theme/palette';
 
 interface HeaderWithActionProps {
@@ -14,14 +13,13 @@ interface HeaderWithActionProps {
 export function HeaderWithAction({ title, actionText, onActionPress }: HeaderWithActionProps) {
   return (
     <ThemedView style={styles.container}>
-      <ThemedText style={styles.title}>{title}</ThemedText>
+      <Heading level={3} color={lightModePalette.onSurface}>{title}</Heading>
       {actionText && (
-        <ThemedText
-          style={styles.action}
-          onPress={onActionPress}
-        >
-          {actionText}
-        </ThemedText>
+        <TouchableOpacity onPress={onActionPress}>
+          <Body color={lightModePalette.primary.DEFAULT} style={styles.action}>
+            {actionText}
+          </Body>
+        </TouchableOpacity>
       )}
     </ThemedView>
   );
@@ -34,12 +32,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  title: {
-    ...typography.heading[3],
-    color: lightModePalette.onSurface,
-  },
   action: {
-    ...typography.label.md,
-    color: lightModePalette.primary.DEFAULT,
+    fontWeight: '600',
   },
 });

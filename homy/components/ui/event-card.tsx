@@ -1,10 +1,8 @@
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { ThemedText } from '../themed-text';
-import { ThemedView } from '../themed-view';
+import { Card } from './card';
+import { Caption, Subheading, Body } from './typography';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
 import { radius } from '@/theme/radius';
-import { shadows } from '@/theme/shadows';
 import { lightModePalette } from '@/theme/palette';
 
 interface EventCardProps {
@@ -19,42 +17,37 @@ interface EventCardProps {
 export function EventCard({ icon, time, title, location, highlighted = false, onPress }: EventCardProps) {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <ThemedView
+      <Card
         style={[
-          styles.card,
+          styles.eventCard,
           highlighted && styles.highlighted,
-          shadows.md,
         ]}
+        padding="md"
+        variant="elevated"
       >
         <View style={styles.iconContainer}>
           {icon}
         </View>
         <View style={styles.content}>
-          <ThemedText style={styles.time}>{time}</ThemedText>
-          <ThemedText style={styles.title}>{title}</ThemedText>
-          <ThemedText style={styles.location}>{location}</ThemedText>
+          <Caption color={lightModePalette.onSurfaceVariant}>{time}</Caption>
+          <Subheading color={lightModePalette.onSurface}>{title}</Subheading>
+          <Body size="sm" color={lightModePalette.onSurfaceVariant}>{location}</Body>
         </View>
-      </ThemedView>
+      </Card>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  eventCard: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: lightModePalette.surface,
-    borderWidth: 2,
-    borderColor: lightModePalette.outline,
     alignItems: 'center',
     marginRight: spacing.md,
     minWidth: 280,
   },
   highlighted: {
-    borderColor: lightModePalette.primary.DEFAULT,
     borderWidth: 2,
+    borderColor: lightModePalette.primary.DEFAULT,
   },
   iconContainer: {
     width: 48,
@@ -67,19 +60,5 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  time: {
-    ...typography.label.sm,
-    color: lightModePalette.onSurfaceVariant,
-    marginBottom: spacing.xs,
-  },
-  title: {
-    ...typography.label.lg,
-    color: lightModePalette.onSurface,
-    marginBottom: spacing.xs,
-  },
-  location: {
-    ...typography.body.sm,
-    color: lightModePalette.onSurfaceVariant,
   },
 });

@@ -1,8 +1,6 @@
 import { StyleSheet, View, ScrollView, TouchableOpacity, FlatList } from 'react-native';
-import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
 import { radius } from '@/theme/radius';
 import { shadows } from '@/theme/shadows';
 import { lightModePalette } from '@/theme/palette';
@@ -10,12 +8,12 @@ import { EventCard } from '@/components/ui/event-card';
 import { TaskItem } from '@/components/ui/task-item';
 import { Badge } from '@/components/ui/badge';
 import { HeaderWithAction } from '@/components/ui/header-with-action';
+import { IconButton } from '@/components/ui/icon-button';
+import { Heading, Body, Caption } from '@/components/ui/typography';
 import { Menu, Home, Bell, Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { useAuth } from '../../context/auth';
 
 export default function HomeScreen() {
-  const { user } = useAuth();
   const [tasks, setTasks] = useState([
     {
       id: '1',
@@ -52,13 +50,16 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       {/* Top Navigation Bar */}
       <ThemedView style={[styles.header, shadows.sm]}>
-        <TouchableOpacity style={styles.headerIcon}>
-          <Menu size={24} color={lightModePalette.onSurface} />
-        </TouchableOpacity>
+        <IconButton
+          icon={Menu}
+          backgroundColor="transparent"
+          iconColor={lightModePalette.onSurface}
+          size="md"
+        />
 
         <View style={styles.headerCenter}>
           <Home size={24} color={lightModePalette.primary.DEFAULT} />
-          <ThemedText style={styles.headerLogo}>HOMY</ThemedText>
+          <Heading level={3} color={lightModePalette.onSurface}>HOMY</Heading>
         </View>
 
         <View style={styles.headerRight}>
@@ -66,14 +67,12 @@ export default function HomeScreen() {
             <Bell size={24} color={lightModePalette.onSurface} />
             <View style={styles.badge} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.plusButton,
-              { backgroundColor: lightModePalette.primary.DEFAULT },
-            ]}
-          >
-            <Plus size={24} color={lightModePalette.neutral[100]} />
-          </TouchableOpacity>
+          <IconButton
+            icon={Plus}
+            backgroundColor={lightModePalette.primary.DEFAULT}
+            iconColor={lightModePalette.neutral[100]}
+            size="md"
+          />
         </View>
       </ThemedView>
 
@@ -84,13 +83,25 @@ export default function HomeScreen() {
       >
         {/* Greeting Section */}
         <ThemedView style={styles.greetingSection}>
-          <ThemedText style={styles.greeting}>Good Morning, Sarah!</ThemedText>
+          <Heading level={1} color={lightModePalette.onSurface}>
+            Good Morning, Sarah!
+          </Heading>
           <View style={styles.subtitleContainer}>
-            <ThemedText style={styles.subtitle}>Today is a gentle Tuesday. You have </ThemedText>
-            <ThemedText style={[styles.subtitle, styles.highlight]}>3 appointments</ThemedText>
-            <ThemedText style={styles.subtitle}> and </ThemedText>
-            <ThemedText style={[styles.subtitle, styles.highlight]}>5 tasks</ThemedText>
-            <ThemedText style={styles.subtitle}> awaiting your attention.</ThemedText>
+            <Body size="md" color={lightModePalette.onSurfaceVariant}>
+              Today is a gentle Tuesday. You have{' '}
+            </Body>
+            <Body size="md" color={lightModePalette.primary.DEFAULT} style={{ fontWeight: '600' }}>
+              3 appointments
+            </Body>
+            <Body size="md" color={lightModePalette.onSurfaceVariant}>
+              {' '}and{' '}
+            </Body>
+            <Body size="md" color={lightModePalette.primary.DEFAULT} style={{ fontWeight: '600' }}>
+              5 tasks
+            </Body>
+            <Body size="md" color={lightModePalette.onSurfaceVariant}>
+              {' '}awaiting your attention.
+            </Body>
           </View>
         </ThemedView>
 
@@ -110,7 +121,7 @@ export default function HomeScreen() {
             scrollEventThrottle={16}
             renderItem={({ item }) => (
               <EventCard
-                icon={<ThemedText style={styles.eventIcon}>{item.icon}</ThemedText>}
+                icon={<Body style={styles.eventIcon}>{item.icon}</Body>}
                 time={item.time}
                 title={item.title}
                 location={item.location}
@@ -124,7 +135,9 @@ export default function HomeScreen() {
         {/* Tasks Due Today Section */}
         <ThemedView>
           <View style={styles.tasksHeader}>
-            <ThemedText style={styles.tasksTitle}>Tasks Due Today</ThemedText>
+            <Heading level={3} color={lightModePalette.onSurface}>
+              Tasks Due Today
+            </Heading>
             <Badge label="5 REMAINING" variant="secondary" />
           </View>
 
@@ -159,17 +172,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: lightModePalette.outline,
   },
-  headerIcon: {
-    padding: spacing.sm,
-  },
   headerCenter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  headerLogo: {
-    ...typography.label.lg,
-    color: lightModePalette.onSurface,
   },
   headerRight: {
     flexDirection: 'row',
@@ -189,13 +195,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: lightModePalette.error.DEFAULT,
   },
-  plusButton: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     flex: 1,
   },
@@ -206,22 +205,10 @@ const styles = StyleSheet.create({
   greetingSection: {
     marginBottom: spacing.xl,
   },
-  greeting: {
-    ...typography.heading[1],
-    color: lightModePalette.onSurface,
-    marginBottom: spacing.md,
-  },
   subtitleContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-  },
-  subtitle: {
-    ...typography.body.md,
-    color: lightModePalette.onSurfaceVariant,
-  },
-  highlight: {
-    color: lightModePalette.primary.DEFAULT,
-    fontWeight: '600',
+    marginTop: spacing.md,
   },
   eventsList: {
     marginBottom: spacing.xl,
@@ -234,10 +221,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.lg,
-  },
-  tasksTitle: {
-    ...typography.heading[3],
-    color: lightModePalette.onSurface,
   },
   spacer: {
     height: spacing.xl,

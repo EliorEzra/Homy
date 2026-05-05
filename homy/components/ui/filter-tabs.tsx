@@ -1,7 +1,6 @@
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { ThemedText } from '../themed-text';
+import { Body } from './typography';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
 import { radius } from '@/theme/radius';
 import { lightModePalette } from '@/theme/palette';
 
@@ -24,14 +23,16 @@ export function FilterTabs({ tabs, activeTab, onTabPress }: FilterTabsProps) {
           ]}
           onPress={() => onTabPress(index)}
         >
-          <ThemedText
-            style={[
-              styles.tabText,
-              activeTab === index && styles.tabTextActive,
-            ]}
+          <Body
+            size="sm"
+            color={
+              activeTab === index
+                ? lightModePalette.neutral[100]
+                : lightModePalette.onSurface
+            }
           >
             {tab}
-          </ThemedText>
+          </Body>
         </TouchableOpacity>
       ))}
     </View>
@@ -52,12 +53,5 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     backgroundColor: lightModePalette.primary.DEFAULT,
-  },
-  tabText: {
-    ...typography.label.md,
-    color: lightModePalette.onSurface,
-  },
-  tabTextActive: {
-    color: lightModePalette.neutral[100],
   },
 });

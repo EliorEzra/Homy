@@ -1,33 +1,66 @@
-import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { ThemedText } from '../themed-text';
-import { ThemedView } from '../themed-view';
+import { TouchableOpacity, StyleSheet } from 'react-native';
+import { Card } from './card';
+import { Body } from './typography';
 import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
-import { radius } from '@/theme/radius';
-import { shadows } from '@/theme/shadows';
 import { lightModePalette } from '@/theme/palette';
-import { CheckSquare, Calendar, TrendingUp, BarChart3, AlertCircle, ShoppingCart } from 'lucide-react-native';
+import { LucideIcon } from 'lucide-react-native';
 
-interface AddActionMenuProps {
-  visible: boolean;
-  onDismiss: () => void;
-  onAddTask?: () => void;
-  onAddEvent?: () => void;
-  onAddExpense?: () => void;
-  onAddIncome?: () => void;
-  onAddBill?: () => void;
-  onAddShoppingList?: () => void;
+interface ActionItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  onPress?: () => void;
 }
 
-const menuItems = [
-  { id: 'task', label: 'Add Task', icon: CheckSquare },
-  { id: 'event', label: 'Add Event', icon: Calendar },
-  { id: 'expense', label: 'Add Expense', icon: TrendingUp },
-  { id: 'income', label: 'Add Income', icon: BarChart3 },
-  { id: 'bill', label: 'Add Upcoming Bill', icon: AlertCircle },
-  { id: 'shopping', label: 'Add Shopping List', icon: ShoppingCart },
-];
+interface ActionMenuProps {
+  visible: boolean;
+  items: ActionItem[];
+  onDismiss: () => void;
+}
 
+export function ActionMenu({ visible, items, onDismiss }: ActionMenuProps) {
+  if (!visible) return null;
+
+  return (
+    <TouchableOpacity
+      style={styles.overlay}
+      onPress={onDismiss}
+      activeOpacity={1}
+    >
+      <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+        <Card style={styles.menu} padding="sm" variant="elevated">
+          {items.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.menuItem,
+                  index < items.length - 1 && styles.menuItemBorder,
+                ]}
+                onPress={() => {
+                  item.onPress?.();
+                  onDismiss();
+                }}
+              >
+                <Icon
+                  size={24}
+                  color={lightModePalette.primary.DEFAULT}
+                  strokeWidth={2}
+                />
+                <Body color={lightModePalette.onSurface} style={styles.menuItemText}>
+                  {item.label}
+                </Body>
+              </TouchableOpacity>
+            );
+          })}
+        </Card>
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+}
+
+// Keep old export for backwards compatibility
 export function AddActionMenu({
   visible,
   onDismiss,
@@ -37,48 +70,28 @@ export function AddActionMenu({
   onAddIncome,
   onAddBill,
   onAddShoppingList,
-}: AddActionMenuProps) {
-  if (!visible) return null;
+}: {
+  visible: boolean;
+  onDismiss: () => void;
+  onAddTask?: () => void;
+  onAddEvent?: () => void;
+  onAddExpense?: () => void;
+  onAddIncome?: () => void;
+  onAddBill?: () => void;
+  onAddShoppingList?: () => void;
+}) {
+  const { CheckSquare, Calendar, TrendingUp, BarChart3, AlertCircle, ShoppingCart } = require('lucide-react-native');
 
-  const handlers: Record<string, () => void> = {
-    task: onAddTask || (() => {}),
-    event: onAddEvent || (() => {}),
-    expense: onAddExpense || (() => {}),
-    income: onAddIncome || (() => {}),
-    bill: onAddBill || (() => {}),
-    shopping: onAddShoppingList || (() => {}),
-  };
+  const items: ActionItem[] = [
+    { id: 'task', label: 'Add Task', icon: CheckSquare, onPress: onAddTask },
+    { id: 'event', label: 'Add Event', icon: Calendar, onPress: onAddEvent },
+    { id: 'expense', label: 'Add Expense', icon: TrendingUp, onPress: onAddExpense },
+    { id: 'income', label: 'Add Income', icon: BarChart3, onPress: onAddIncome },
+    { id: 'bill', label: 'Add Upcoming Bill', icon: AlertCircle, onPress: onAddBill },
+    { id: 'shopping', label: 'Add Shopping List', icon: ShoppingCart, onPress: onAddShoppingList },
+  ];
 
-  return (
-    <TouchableOpacity
-      style={styles.overlay}
-      onPress={onDismiss}
-      activeOpacity={1}
-    >
-      <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-        <ThemedView style={[styles.menu, shadows.lg]}>
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.menuItem}
-                onPress={() => {
-                  handlers[item.id]?.();
-                  onDismiss();
-                }}
-              >
-                <Icon size={24} color={lightModePalette.primary.DEFAULT} />
-                <ThemedText style={styles.menuItemText}>
-                  {item.label}
-                </ThemedText>
-              </TouchableOpacity>
-            );
-          })}
-        </ThemedView>
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
+  return <ActionMenu visible={visible} items={items} onDismiss={onDismiss} />;
 }
 
 const styles = StyleSheet.create({
@@ -94,9 +107,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   menu: {
-    backgroundColor: lightModePalette.surface,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.lg,
     minWidth: 280,
   },
   menuItem: {
@@ -105,9 +115,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
+  menuItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: lightModePalette.surfaceContainer,
+  },
   menuItemText: {
-    ...typography.body.md,
-    color: lightModePalette.onSurface,
     marginLeft: spacing.lg,
   },
 });
