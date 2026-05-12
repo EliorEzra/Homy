@@ -62,6 +62,7 @@ export function HouseProvider(props: ProviderProps) {
     const [house, setHouse] = useState<Models.Membership | null>(null);
     const [houseInitialized, setHouseInitialized] = React.useState<boolean>(false);
     
+    const {user} = useAuth()
     // This hook will protect the route access based on if the user has a house.
     const useProtectedRoute = (house: Models.Membership | null) => {
         const segments = useSegments();
@@ -73,7 +74,6 @@ export function HouseProvider(props: ProviderProps) {
 
         useEffect(() => {
             const unsubscribe = rootNavigation?.addListener("state", (event) => {
-            console.log("Setting navigation to true")
             setNavigationReady(true);
             });
             return function cleanup() {
@@ -87,12 +87,8 @@ export function HouseProvider(props: ProviderProps) {
             if (!isNavigationReady) {
             return;
             }
-            console.log("Using house effect")
-            console.log("house initialised: ", houseInitialized)
             const isInMainAppArea = segments[0] === "(tabs)";
             if (!houseInitialized) return;
-            console.log("is in main area: ", isInMainAppArea)
-            console.log("actual segments: ", segments)
             if (
             // If the user is does not have a house and the initial segment is not the main app area (tabs).
             !house
@@ -107,7 +103,6 @@ export function HouseProvider(props: ProviderProps) {
     };
 
     async function createHouse(name: string, roles?: string[]): Promise<CreateHouseResponse> {
-        const {user} = useAuth()
         try {
             if (user === null) {
                 throw new Error("Log in before creating a new whouse")
@@ -194,7 +189,6 @@ export function HouseProvider(props: ProviderProps) {
     }
 
     async function acceptHouseInvite(teamId: string, secret: string): Promise<AcceptHouseInviteResponse> {
-        const {user} = useAuth()
         try {
             if (!user) {
                 // TODO: allow users to join houses before creating an account
@@ -251,8 +245,6 @@ export function HouseProvider(props: ProviderProps) {
             }
         }
     }
-
-    const {user} = useAuth()
     const segments = useSegments();
     useEffect(() => {
         (async () => {
@@ -264,8 +256,6 @@ export function HouseProvider(props: ProviderProps) {
             if (houses.total > 1) {
                 throw new Error("User belongs to more than 1 house");
             }
-            console.log("houses", houses);
-            console.log("segments", segments)
             if (houses.total == 1) {
                 const house = houses.teams[0]
                 const houseMembers = await team.listMemberships({

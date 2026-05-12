@@ -150,7 +150,7 @@ export function TasksProvider(props: ProviderProps) {
           console.log("error", error);
           setTasks(null);
         }
-        console.log("initialize ", tasks);
+        console.log("initialize (tasks)", tasks);
       })();
     }, []);
 
