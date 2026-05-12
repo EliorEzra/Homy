@@ -61,9 +61,7 @@ export function AuthProvider(props: ProviderProps) {
       if (!isNavigationReady) {
         return;
       }
-
       const inAuthGroup = segments[0] === "(auth)";
-
       if (!authInitialized) return;
 
       if (
@@ -92,7 +90,7 @@ export function AuthProvider(props: ProviderProps) {
       }
 
       setAuthInitialized(true);
-      console.log("initialize ", user);
+      console.log("initialize (user)", user);
     })();
   }, []);
 
@@ -194,7 +192,8 @@ export function AuthProvider(props: ProviderProps) {
 // Define the useAuth hook
 export const useAuth = () => {
   const authContext = useContext(AuthContext);
-
+  console.log("Called useAuth")
+  console.log("user: " + authContext?.user)
   if (!authContext) {
     throw new Error("useAuth must be used within an AuthContextProvider");
   }

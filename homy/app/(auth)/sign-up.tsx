@@ -17,7 +17,7 @@ export default function SignUp() {
   const emailRef = useRef("");
   const passwordRef = useRef("");
   const userNameRef = useRef("");
-
+  console.log("In signup")
   return (
     <>
       <Stack.Screen options={{ title: "sign up", headerShown: false }} />
@@ -65,7 +65,7 @@ export default function SignUp() {
               userNameRef.current
             );
             if (data) {
-              router.replace("/(tabs)/home");
+              router.replace("/(house)");
             } else {
               console.log(error);
               Alert.alert("Error signing up", error?.message);
