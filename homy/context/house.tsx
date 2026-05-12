@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { team } from "@/lib/appwrite";
 import { Models, ID, Query } from "react-native-appwrite";
 import { useAuth } from "./auth";
+import { useNavigationContainerRef, useRouter, useSegments } from "expo-router";
 
 interface CreateHouseResponse {
   data: Models.Team | undefined;
@@ -59,12 +60,57 @@ const HouseContext = React.createContext<HouseContextValue | undefined>(
 
 export function HouseProvider(props: ProviderProps) {
     const [house, setHouse] = useState<Models.Membership | null>(null);
+    const [houseInitialized, setHouseInitialized] = React.useState<boolean>(false);
+    
+    // This hook will protect the route access based on if the user has a house.
+    const useProtectedRoute = (house: Models.Membership | null) => {
+        const segments = useSegments();
+        const router = useRouter();
+
+        // checking that navigation is all good;
+        const [isNavigationReady, setNavigationReady] = useState(false);
+        const rootNavigation = useNavigationContainerRef();
+
+        useEffect(() => {
+            const unsubscribe = rootNavigation?.addListener("state", (event) => {
+            console.log("Setting navigation to true")
+            setNavigationReady(true);
+            });
+            return function cleanup() {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            };
+        }, [rootNavigation]);
+
+        useEffect(() => {
+            if (!isNavigationReady) {
+            return;
+            }
+            console.log("Using house effect")
+            console.log("house initialised: ", houseInitialized)
+            const isInMainAppArea = segments[0] === "(tabs)";
+            if (!houseInitialized) return;
+            console.log("is in main area: ", isInMainAppArea)
+            console.log("actual segments: ", segments)
+            if (
+            // If the user is does not have a house and the initial segment is not the main app area (tabs).
+            !house
+            ) {
+            // Redirect to the house creation page page.
+            router.push({pathname: "/(house)"});
+            } else if (house && !isInMainAppArea) {
+            // Redirect away from the house creation page.
+            router.push("/(tabs)/home");
+            }
+        }, [house, segments, houseInitialized, isNavigationReady]);
+    };
 
     async function createHouse(name: string, roles?: string[]): Promise<CreateHouseResponse> {
         const {user} = useAuth()
         try {
             if (user === null) {
-                throw new Error("Log in before creating a ne whouse")
+                throw new Error("Log in before creating a new whouse")
             }
             if(house != null) {
                 throw new Error("Cannot create new house while a member of existing house");
@@ -206,9 +252,10 @@ export function HouseProvider(props: ProviderProps) {
         }
     }
 
+    const {user} = useAuth()
+    const segments = useSegments();
     useEffect(() => {
         (async () => {
-          const {user} = useAuth()
           try {
             if (user === null) {
                 throw new Error("User must be logged in before trying to get house")
@@ -217,7 +264,8 @@ export function HouseProvider(props: ProviderProps) {
             if (houses.total > 1) {
                 throw new Error("User belongs to more than 1 house");
             }
-            console.log(houses);
+            console.log("houses", houses);
+            console.log("segments", segments)
             if (houses.total == 1) {
                 const house = houses.teams[0]
                 const houseMembers = await team.listMemberships({
@@ -233,10 +281,13 @@ export function HouseProvider(props: ProviderProps) {
             console.log("error", error);
             setHouse(null);
           }
-          console.log("initialize ", house);
+          setHouseInitialized(true);
+          console.log("initialize (house)", house);
         })();
-      }, []);
+      }, [user, segments]);
 
+    useProtectedRoute(house)
+    
     return (
         <HouseContext.Provider value={{
             createHouse: createHouse,
@@ -256,7 +307,7 @@ export function HouseProvider(props: ProviderProps) {
 
 export const useHouse = () => {
   const houseContext = useContext(HouseContext);
-
+  console.log("Called useHouse")
   if (!houseContext) {
     throw new Error("useHouse must be used within an HouseContextProvider");
   }
