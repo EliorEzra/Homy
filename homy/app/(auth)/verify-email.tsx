@@ -8,31 +8,56 @@ import { ThemedInput } from "@/components/themed-input";
 import { useAuth } from "@/context/auth";
 
 export default function VerifyEmail() {
+  // Destructure params passed from sign-up.tsx
   const { userId, email, password } = useLocalSearchParams<{
     userId: string;
     email: string;
     password: string;
   }>();
+
   const router = useRouter();
   const { verifyEmail } = useAuth();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Handles the verification process
+   */
   const handleVerify = async () => {
+    // Basic validation
     if (!code || !userId) {
-      Alert.alert("Error", "Please enter the verification code");
+      Alert.alert("Error", "Please enter the verification code sent to your email.");
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = await verifyEmail(userId, code, email, password!);
+      /**
+       * We pass userId, trimmed code, email, and password.
+       * The password is required in our AuthContext to create a session 
+       * before calling Appwrite's updateVerification.
+       */
+      const { data, error } = await verifyEmail(
+        userId, 
+        code.trim(), 
+        email!, 
+        password!
+      );
+
       if (data) {
-        Alert.alert("Success", "Email verified! Redirecting...");
+        Alert.alert("Success", "Your email has been verified successfully!");
+        // Redirect to the home screen
         router.replace("/(tabs)/home");
       } else {
-        Alert.alert("Verification Error", error?.message || "Invalid code. Please try again.");
+        // Log error for debugging and show alert
+        console.error("Verification error:", error);
+        Alert.alert(
+          "Verification Error", 
+          error?.message || "Invalid code. Please check your email and try again."
+        );
       }
+    } catch (err) {
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -47,20 +72,22 @@ export default function VerifyEmail() {
         }}
       />
       <MainView>
-        <ThemedView>
+        <ThemedView style={styles.headerContainer}>
           <ThemedText style={styles.title}>Verify Your Email</ThemedText>
           <ThemedText style={styles.subtitle}>
-            We've sent a verification code to {email}. Please enter it below.
+            We've sent a 6-digit verification code to:{"\n"}
+            <ThemedText style={{ fontWeight: "bold" }}>{email}</ThemedText>
           </ThemedText>
         </ThemedView>
 
-        <ThemedView>
+        <ThemedView style={styles.inputContainer}>
           <ThemedText style={styles.label}>Verification Code</ThemedText>
           <ThemedInput
             placeholder="Enter 6-digit code"
             value={code}
             onChangeText={setCode}
-            maxLength={256}
+            maxLength={6}
+            keyboardType="number-pad"
             autoCapitalize="none"
           />
         </ThemedView>
@@ -71,9 +98,9 @@ export default function VerifyEmail() {
           disabled={loading}
         />
 
-        <ThemedView style={{ marginTop: 32 }}>
+        <ThemedView style={styles.footerContainer}>
           <ThemedText
-            style={{ fontWeight: "500", textAlign: "center" }}
+            style={styles.backLink}
             onPress={() => router.replace("/sign-in")}
           >
             Back to Sign In
@@ -85,18 +112,34 @@ export default function VerifyEmail() {
 }
 
 const styles = StyleSheet.create({
+  headerContainer: {
+    marginBottom: 24,
+  },
   title: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "bold",
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 16,
+    lineHeight: 22,
+    opacity: 0.8,
+  },
+  inputContainer: {
     marginBottom: 24,
-    opacity: 0.7,
   },
   label: {
-    marginBottom: 4,
+    marginBottom: 8,
     color: "#455fff",
+    fontWeight: "600",
+  },
+  footerContainer: {
+    marginTop: 32,
+    alignItems: "center",
+  },
+  backLink: {
+    fontWeight: "500",
+    color: "#455fff",
+    textDecorationLine: "underline",
   },
 });

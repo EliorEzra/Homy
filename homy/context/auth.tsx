@@ -195,25 +195,27 @@ export function AuthProvider(props: ProviderProps) {
   const verifyEmail = async (
     userId: string,
     secret: string,
-    email: string,
-    password: string
+    email: string,  
+    password: string  
   ): Promise<SignInResponse> => {
     try {
-      // Verify the email with the token
-      await account.updateEmailVerification(userId, secret);
+      try {
+        await account.deleteSession("current");
+      } catch (e) {
+      }
 
-      // Now create a password session after email is verified
-      await account.createEmailPasswordSession(email, password);
+      await account.createSession(userId, secret.trim());
+
+      const updatedUser = await account.get();
+      setAuth(updatedUser);
       
-      const user = await account.get();
-      setAuth(user);
-      return { data: user, error: undefined };
+      return { data: updatedUser, error: undefined };
     } catch (error) {
+      console.error("Verification failed:", error);
       setAuth(null);
       return { error: error as Error, data: undefined };
     }
   };
-
   useProtectedRoute(user);
 
   return (
