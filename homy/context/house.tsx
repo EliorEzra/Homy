@@ -139,8 +139,6 @@ export function HouseProvider(props: ProviderProps) {
         }
     }
 
-
-    // TODO: check this when we have SMTP (mail) set up
     async function addUser(email: string, roles?: string[]): Promise<AddUserResponse> {
         try {
             if (!house) {
@@ -195,6 +193,9 @@ export function HouseProvider(props: ProviderProps) {
         }
     }
 
+
+    // TODO: Set up app linking
+    // https://docs.expo.dev/linking/android-app-links/
     async function acceptHouseInvite(teamId: string, secret: string): Promise<AcceptHouseInviteResponse> {
         try {
             if (!user) {
