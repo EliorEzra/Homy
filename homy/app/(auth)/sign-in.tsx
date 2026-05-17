@@ -18,7 +18,6 @@ export default function SignIn() {
   const emailRef = useRef("");
   const passwordRef = useRef("");
 
-  console.log("In signin")
   return (
     <>
       <Stack.Screen options={{ title: "sign up", headerShown: false }} />

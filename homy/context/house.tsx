@@ -1,8 +1,8 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, createContext } from "react";
 import { team } from "@/lib/appwrite";
 import { Models, ID, Query } from "react-native-appwrite";
 import { useAuth } from "./auth";
-import { useNavigationContainerRef, useRouter, useSegments } from "expo-router";
+import { router, useNavigationContainerRef, useRouter, useSegments } from "expo-router";
 
 interface CreateHouseResponse {
   data: Models.Team | undefined;
@@ -54,13 +54,13 @@ interface ProviderProps {
   children: React.ReactNode;
 }
 
-const HouseContext = React.createContext<HouseContextValue | undefined>(
+const HouseContext = createContext<HouseContextValue | undefined>(
   undefined
 );
 
 export function HouseProvider(props: ProviderProps) {
     const [house, setHouse] = useState<Models.Membership | null>(null);
-    const [houseInitialized, setHouseInitialized] = React.useState<boolean>(false);
+    const [houseInitialized, setHouseInitialized] = useState<boolean>(false);
     
     const {user} = useAuth()
     // This hook will protect the route access based on if the user has a house.
@@ -89,7 +89,11 @@ export function HouseProvider(props: ProviderProps) {
             }
             const isInMainAppArea = segments[0] === "(tabs)";
             if (!houseInitialized) return;
-            if (
+            // If there's no user (and we're somehow here)
+            if (!user) {
+                router.push({pathname: "/(auth)/sign-in"})
+            }
+            else if (
             // If the user is does not have a house and the initial segment is not the main app area (tabs).
             !house
             ) {
@@ -99,7 +103,7 @@ export function HouseProvider(props: ProviderProps) {
             // Redirect away from the house creation page.
             router.push("/(tabs)/home");
             }
-        }, [house, segments, houseInitialized, isNavigationReady]);
+        }, [house, user, segments, houseInitialized, isNavigationReady]);
     };
 
     async function createHouse(name: string, roles?: string[]): Promise<CreateHouseResponse> {
@@ -143,7 +147,8 @@ export function HouseProvider(props: ProviderProps) {
             const response = await team.createMembership({
                 teamId: house.teamId,
                 roles: roles ? roles : [],
-                email: email
+                email: email,
+                url: 'https://alminim0.dynv6.net/accept-invite'
             })
             return {data: {}, error: undefined}
         } catch (error) {
@@ -297,7 +302,6 @@ export function HouseProvider(props: ProviderProps) {
 
 export const useHouse = () => {
   const houseContext = useContext(HouseContext);
-  console.log("Called useHouse")
   if (!houseContext) {
     throw new Error("useHouse must be used within an HouseContextProvider");
   }
