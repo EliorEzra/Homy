@@ -111,7 +111,7 @@ export function HouseProvider(props: ProviderProps) {
     async function createHouse(name: string, roles?: string[]): Promise<CreateHouseResponse> {
         try {
             if (user === null) {
-                throw new Error("Log in before creating a new whouse")
+                throw new Error("Log in before creating a new house")
             }
             if(house != null) {
                 throw new Error("Cannot create new house while a member of existing house");
