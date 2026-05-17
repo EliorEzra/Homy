@@ -1,86 +1,183 @@
 import {
   Text,
   StyleSheet,
-  Alert
+  Alert,
+  ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { useAuth } from "@/context/auth";
 import { Stack, useRouter } from "expo-router";
-import { useRef } from "react";
+import { useState } from "react";
 import { ThemedInput } from "@/components/themed-input";
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/themed-button'
 import { MainView, ThemedView } from '@/components/themed-view';
+import { ThemedFormField } from '@/components/themed-form-field';
+import { spacing, typography } from '@/theme/theme';
 
 export default function SignIn() {
   const { signIn } = useAuth();
   const router = useRouter();
 
-  const emailRef = useRef("");
-  const passwordRef = useRef("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateForm = () => {
+    const newErrors: { email?: string; password?: string } = {};
+
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!validateEmail(email)) {
+      newErrors.email = "Please enter a valid email";
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSignIn = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await signIn(email, password);
+      if (data) {
+        router.replace("/(tabs)/home");
+      } else {
+        Alert.alert("Login Error", error?.message || "Failed to sign in. Please try again.");
+      }
+    } catch (err) {
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
-      <Stack.Screen options={{ title: "sign up", headerShown: false }} />
-      <MainView>
-        <ThemedView>
-          <Text style={styles.label}>Email</Text>
-          <ThemedInput
-            type="email"
-            placeholder="email"
-            autoCapitalize="none"
-            nativeID="email"
+      <Stack.Screen options={{ title: "Sign In", headerShown: false }} />
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false}>
+        <MainView>
+          <ThemedView style={styles.headerContainer}>
+            <ThemedText type="title" style={styles.title}>Welcome Back</ThemedText>
+            <ThemedText style={styles.subtitle}>Sign in to your Homy account</ThemedText>
+          </ThemedView>
+
+          <ThemedFormField
+            label="Email Address"
+            placeholder="your@email.com"
+            value={email}
             onChangeText={(text) => {
-              emailRef.current = text;
+              setEmail(text);
+              if (errors.email) setErrors({ ...errors, email: undefined });
             }}
+            error={errors.email}
+            required
+            inputProps={{
+              autoCapitalize: "none",
+              keyboardType: "email-address",
+              editable: !loading,
+            }}
+            style={styles.field}
           />
-        </ThemedView>
-        <ThemedView>
-          <Text style={styles.label}>Password</Text>
-          <ThemedInput
-            placeholder="password"
-            type="password"
-            nativeID="password"
+
+          <ThemedFormField
+            label="Password"
+            placeholder="••••••••"
+            value={password}
             onChangeText={(text) => {
-              passwordRef.current = text;
+              setPassword(text);
+              if (errors.password) setErrors({ ...errors, password: undefined });
             }}
+            error={errors.password}
+            required
+            inputProps={{
+              secureTextEntry: true,
+              editable: !loading,
+            }}
+            style={styles.field}
           />
-        </ThemedView>
-        <ThemedButton
-          onPress={async () => {
-            const { data, error } = await signIn(
-              emailRef.current,
-              passwordRef.current
-            );
-            if (data) {
-              router.replace("/(tabs)/home");
-            } else {
-              console.log(error);
-              Alert.alert("Login Error", error?.message);
-            }
-          }}
-          title="Login"
-          textStyle={styles.buttonText}
-        />
-        <ThemedView style={{ marginTop: 32 }}>
-          <ThemedText
-            style={{ fontWeight: "500" }}
-            onPress={() => router.push("/sign-up")}
-          >
-            Click Here To Create A New Account
-          </ThemedText>
-        </ThemedView>
-      </MainView>
+
+          <ThemedButton
+            onPress={handleSignIn}
+            title={loading ? "Signing In..." : "Sign In"}
+            disabled={loading}
+            style={styles.signInButton}
+          />
+
+          <ThemedView style={styles.dividerContainer}>
+            <ThemedText type="defaultSemiBold" style={styles.orText}>OR</ThemedText>
+          </ThemedView>
+
+          <ThemedView style={styles.signUpContainer}>
+            <ThemedText style={styles.signUpText}>
+              Don't have an account?{" "}
+            </ThemedText>
+            <ThemedText
+              type="link"
+              onPress={() => router.push("/sign-up")}
+              style={styles.signUpLink}
+            >
+              Create one
+            </ThemedText>
+          </ThemedView>
+        </MainView>
+      </ScrollView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  label: {
-    marginBottom: 4,
-    color: "#455fff",
+  headerContainer: {
+    marginBottom: spacing.xl,
+    alignItems: 'center',
   },
-  buttonText: {
-    color: "white",
-    textAlign: "center",
+  title: {
+    marginBottom: spacing.sm,
+  },
+  subtitle: {
     fontSize: 16,
+    opacity: 0.7,
+  },
+  field: {
+    width: '100%',
+    maxWidth: 300,
+  },
+  signInButton: {
+    marginTop: spacing.lg,
+    width: '100%',
+    maxWidth: 300,
+  },
+  dividerContainer: {
+    marginVertical: spacing.xl,
+    alignItems: 'center',
+  },
+  orText: {
+    opacity: 0.5,
+  },
+  signUpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+  },
+  signUpText: {
+    fontSize: 14,
+  },
+  signUpLink: {
+    fontSize: 14,
   },
 });

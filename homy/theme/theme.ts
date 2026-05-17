@@ -26,17 +26,17 @@ export const Colors = {
     disabledButtonTextColor: lightModePalette.neutral[600],
   },
   dark: {
-    text: '#ECEDEE',
+    text: darkModePalette.onSurface,
     background: darkModePalette.surface,
     icon: darkModePalette.primary[200],
-    tabIconDefault: darkModePalette.neutral[600],
+    tabIconDefault: darkModePalette.neutral[700],
     inputBorderSelected: darkModePalette.secondary.DEFAULT,
-    inputBorder: "#878c8f",
-    inputBackground: '#444647',
+    inputBorder: darkModePalette.neutral[600],
+    inputBackground: darkModePalette.neutral[300],
     buttonBackground: darkModePalette.primary.DEFAULT,
     buttonTextColor: darkModePalette.neutral[100],
-    disabledButtonBackground: darkModePalette.neutral[300],
-    disabledButtonTextColor: darkModePalette.neutral[600],
+    disabledButtonBackground: darkModePalette.neutral[400],
+    disabledButtonTextColor: darkModePalette.neutral[700],
   },
 };
 

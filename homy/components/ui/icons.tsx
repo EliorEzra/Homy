@@ -1,11 +1,8 @@
-/**
- * File containing icons for the bottom nav
- */
-
-import { Home, ListTodo } from 'lucide-react-native'
-
+import { Home, ListTodo, Calendar, Settings } from 'lucide-react-native'
 
 const HomeIcon = <Home />
 const TasksIcon = <ListTodo />
+const CalendarIcon = <Calendar />
+const SettingsIcon = <Settings />
 
-export { HomeIcon, TasksIcon }
+export { HomeIcon, TasksIcon, CalendarIcon, SettingsIcon }
