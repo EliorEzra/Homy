@@ -88,7 +88,9 @@ export function HouseProvider(props: ProviderProps) {
             return;
             }
             const isInMainAppArea = segments[0] === "(tabs)";
+            const isInAuthArea = segments[0] === "(auth)";
             if (!houseInitialized) return;
+            if (isInAuthArea) return;
             // If there's no user (and we're somehow here)
             if (!user) {
                 router.push({pathname: "/(auth)/sign-in"})
