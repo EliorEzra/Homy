@@ -1,61 +1,149 @@
-import { Alert, StyleSheet } from 'react-native';
+import { Alert, StyleSheet, View, ScrollView, Pressable } from 'react-native';
 import { useRef } from 'react';
 import { ThemedText } from '@/components/themed-text';
-import { MainView, ThemedView } from '@/components/themed-view';
-import { useAuth } from '../../context/auth';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedCard } from '@/components/themed-card';
 import { ThemedInput } from '@/components/themed-input';
-import { useHouse } from '@/context/house';
 import { ThemedButton } from '@/components/themed-button';
+import { ThemedDivider } from '@/components/themed-divider';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '../../context/auth';
+import { useHouse } from '@/context/house';
+import { spacing } from '@/theme/theme';
+import { useRouter } from 'expo-router';
+import { Calendar, CheckCircle, ShoppingCart, DollarSign, ArrowRight, Users } from 'lucide-react-native';
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ADJECTIVES = ['gentle', 'bright', 'lovely', 'fine', 'great', 'wonderful', 'beautiful'];
+
+function QuickCard({ label, icon, color, onPress }: { label: string; icon: React.ReactNode; color: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.quickCard, { backgroundColor: color }]}>
+      <View style={styles.quickCardIcon}>{icon}</View>
+      <ThemedText style={styles.quickCardLabel}>{label}</ThemedText>
+      <ArrowRight size={14} color="rgba(255,255,255,0.7)" />
+    </Pressable>
+  );
+}
 
 export default function HomeScreen() {
-  const { signOut, user } = useAuth();
+  const { user } = useAuth();
   const { addUser } = useHouse();
+  const router = useRouter();
   const emailRef = useRef("");
+  const primaryColor = useThemeColor({}, 'buttonBackground');
+  const mutedColor = useThemeColor({}, 'tabIconDefault');
+
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+  const dayName = DAY_NAMES[now.getDay()];
+  const adjective = ADJECTIVES[now.getDay()];
+  const userName = user?.name ? user.name.charAt(0).toUpperCase() + user.name.slice(1) : user?.email?.split('@')[0] || 'there';
+
   return (
-    <MainView>
-      <ThemedText type="title">Homy app</ThemedText>
-      <ThemedView style={styles.separator} />
-      <ThemedText onPress={() => signOut()}>Sign Out - {user?.email}</ThemedText>
-      <ThemedView style={styles.separator} />
-      <ThemedView>
-        <ThemedText type='defaultSemiBold'>Invite Email</ThemedText>
-        <ThemedInput 
-          type="email"
-            placeholder="email"
+    <ThemedView style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {/* Greeting */}
+        <View style={styles.greetingSection}>
+          <ThemedText style={styles.greetingText}>{greeting}, {userName}!</ThemedText>
+          <ThemedText style={styles.greetingSubtitle}>Today is a {adjective} {dayName}.</ThemedText>
+        </View>
+
+        {/* Quick Nav Cards */}
+        <View style={styles.quickGrid}>
+          <QuickCard label="Tasks" icon={<CheckCircle size={22} color="white" />} color="#ff5c02" onPress={() => router.push('/(tabs)/tasks')} />
+          <QuickCard label="Shop" icon={<ShoppingCart size={22} color="white" />} color="#4d00ff" onPress={() => router.push('/(tabs)/shop')} />
+          <QuickCard label="Finances" icon={<DollarSign size={22} color="white" />} color="#1fc16b" onPress={() => router.push('/(tabs)/finances')} />
+          <QuickCard label="Calendar" icon={<Calendar size={22} color="white" />} color="#e0a500" onPress={() => router.push('/(tabs)/calendar')} />
+        </View>
+
+        {/* Upcoming Events */}
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionTitle}>Upcoming Events</ThemedText>
+          <Pressable onPress={() => router.push('/(tabs)/calendar')}>
+            <ThemedText style={[styles.viewAll, { color: mutedColor }]}>VIEW ALL</ThemedText>
+          </Pressable>
+        </View>
+        <ThemedCard variant="outlined" style={styles.emptyCard}>
+          <View style={[styles.emptyIconBox, { backgroundColor: `${primaryColor}20` }]}>
+            <Calendar size={24} color={primaryColor} />
+          </View>
+          <ThemedText style={styles.emptyText}>No upcoming events</ThemedText>
+          <ThemedText style={[styles.emptySub, { color: mutedColor }]}>Go to Calendar to add one</ThemedText>
+        </ThemedCard>
+
+        {/* Tasks Due Today */}
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionTitle}>Tasks Due Today</ThemedText>
+          <Pressable onPress={() => router.push('/(tabs)/tasks')}>
+            <ThemedText style={[styles.viewAll, { color: mutedColor }]}>VIEW ALL</ThemedText>
+          </Pressable>
+        </View>
+        <ThemedCard variant="outlined" style={styles.emptyTaskCard}>
+          <CheckCircle size={18} color={mutedColor} />
+          <ThemedText style={[styles.emptyTaskText, { color: mutedColor }]}>No tasks due today</ThemedText>
+        </ThemedCard>
+
+        <ThemedDivider style={styles.divider} />
+
+        {/* Household Invite */}
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionTitle}>Invite to Household</ThemedText>
+        </View>
+        <ThemedCard variant="elevated" style={styles.inviteCard}>
+          <View style={styles.inviteRow}>
+            <Users size={18} color={primaryColor} />
+            <ThemedText style={styles.inviteLabel}>Add a family member by email</ThemedText>
+          </View>
+          <ThemedInput
+            type="email"
+            placeholder="email@example.com"
             autoCapitalize="none"
-            nativeID="email"
-            onChangeText={(text) => {
-              emailRef.current = text;
+            onChangeText={text => { emailRef.current = text; }}
+            style={styles.inviteInput}
+          />
+          <ThemedButton
+            title="Send Invite"
+            onPress={async () => {
+              const { data, error } = await addUser(emailRef.current, []);
+              if (data) {
+                Alert.alert("Invited!", `${emailRef.current} was invited.`);
+              } else {
+                Alert.alert("Error", error?.message);
+              }
             }}
-        />
-        <ThemedButton 
-          title='invite'
-          onPress={async () => {
-            const { data, error } = await addUser(
-              emailRef.current,
-              []
-            );
-            if (data) {
-              console.log('invited', emailRef.current);
-            } else {
-              console.log(error);
-              Alert.alert("Login Error", error?.message);
-            }
-          }}
-        />
-      </ThemedView>
-    </MainView>
+          />
+        </ThemedCard>
+
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
-  },
+  container: { flex: 1 },
+  scroll: { paddingBottom: spacing.xl * 2 },
+  greetingSection: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md },
+  greetingText: { fontSize: 28, fontWeight: '800', marginBottom: spacing.sm, lineHeight: 34 },
+  greetingSubtitle: { fontSize: 14, lineHeight: 20, opacity: 0.65 },
+  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.lg, gap: spacing.md, marginBottom: spacing.xl, marginTop: spacing.md },
+  quickCard: { width: '47%', borderRadius: 14, padding: spacing.md, minHeight: 90, gap: spacing.xs },
+  quickCardIcon: { marginBottom: spacing.xs },
+  quickCardLabel: { color: 'white', fontWeight: '700', fontSize: 15 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  sectionTitle: { fontSize: 18, fontWeight: '700' },
+  viewAll: { fontSize: 12, fontWeight: '600' },
+  emptyCard: { marginHorizontal: spacing.lg, alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
+  emptyIconBox: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { fontWeight: '600', fontSize: 14 },
+  emptySub: { fontSize: 12 },
+  emptyTaskCard: { marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, marginBottom: spacing.lg },
+  emptyTaskText: { fontSize: 14 },
+  divider: { marginHorizontal: spacing.lg, marginVertical: spacing.lg },
+  inviteCard: { marginHorizontal: spacing.lg, gap: spacing.md },
+  inviteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  inviteLabel: { fontSize: 14, opacity: 0.8 },
+  inviteInput: { marginBottom: spacing.xs },
 });

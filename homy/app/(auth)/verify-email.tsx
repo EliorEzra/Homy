@@ -8,7 +8,6 @@ import { ThemedInput } from "@/components/themed-input";
 import { useAuth } from "@/context/auth";
 
 export default function VerifyEmail() {
-  // Destructure params passed from sign-up.tsx
   const { userId, email, password } = useLocalSearchParams<{
     userId: string;
     email: string;
@@ -20,11 +19,7 @@ export default function VerifyEmail() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /**
-   * Handles the verification process
-   */
   const handleVerify = async () => {
-    // Basic validation
     if (!code || !userId) {
       Alert.alert("Error", "Please enter the verification code sent to your email.");
       return;
@@ -32,27 +27,20 @@ export default function VerifyEmail() {
 
     setLoading(true);
     try {
-      /**
-       * We pass userId, trimmed code, email, and password.
-       * The password is required in our AuthContext to create a session 
-       * before calling Appwrite's updateVerification.
-       */
       const { data, error } = await verifyEmail(
-        userId, 
-        code.trim(), 
-        email!, 
+        userId,
+        code.trim(),
+        email!,
         password!
       );
 
       if (data) {
         Alert.alert("Success", "Your email has been verified successfully!");
-        // Redirect to the home screen
         router.replace("/(tabs)/home");
       } else {
-        // Log error for debugging and show alert
         console.error("Verification error:", error);
         Alert.alert(
-          "Verification Error", 
+          "Verification Error",
           error?.message || "Invalid code. Please check your email and try again."
         );
       }
@@ -65,12 +53,7 @@ export default function VerifyEmail() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: "Verify Email",
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ title: "Verify Email", headerShown: false }} />
       <MainView>
         <ThemedView style={styles.headerContainer}>
           <ThemedText style={styles.title}>Verify Your Email</ThemedText>
@@ -112,34 +95,11 @@ export default function VerifyEmail() {
 }
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    lineHeight: 22,
-    opacity: 0.8,
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  label: {
-    marginBottom: 8,
-    color: "#455fff",
-    fontWeight: "600",
-  },
-  footerContainer: {
-    marginTop: 32,
-    alignItems: "center",
-  },
-  backLink: {
-    fontWeight: "500",
-    color: "#455fff",
-    textDecorationLine: "underline",
-  },
+  headerContainer: { marginBottom: 24 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 8 },
+  subtitle: { fontSize: 16, lineHeight: 22, opacity: 0.8 },
+  inputContainer: { marginBottom: 24 },
+  label: { marginBottom: 8, color: "#455fff", fontWeight: "600" },
+  footerContainer: { marginTop: 32, alignItems: "center" },
+  backLink: { fontWeight: "500", color: "#455fff", textDecorationLine: "underline" },
 });
