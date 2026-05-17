@@ -192,8 +192,6 @@ export function AuthProvider(props: ProviderProps) {
 // Define the useAuth hook
 export const useAuth = () => {
   const authContext = useContext(AuthContext);
-  console.log("Called useAuth")
-  console.log("user: " + authContext?.user)
   if (!authContext) {
     throw new Error("useAuth must be used within an AuthContextProvider");
   }
