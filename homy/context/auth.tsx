@@ -9,6 +9,11 @@ interface SignInResponse {
   error: Error | undefined;
 }
 
+interface SignUpResponse {
+  data: { userId: string; email: string } | undefined;
+  error: Error | undefined;
+}
+
 interface SignOutResponse {
   error: any | undefined;
   data: {} | undefined;
@@ -16,7 +21,8 @@ interface SignOutResponse {
 
 interface AuthContextValue {
   signIn: (e: string, p: string) => Promise<SignInResponse>;
-  signUp: (e: string, p: string, n: string) => Promise<SignInResponse>;
+  signUp: (e: string, p: string, n: string) => Promise<SignUpResponse>;
+  verifyEmail: (userId: string, secret: string, email: string, password: string) => Promise<SignInResponse>;
   signOut: () => Promise<SignOutResponse>;
   user: Models.User<Models.Preferences> | null;
   authInitialized: boolean;
@@ -85,7 +91,13 @@ export function AuthProvider(props: ProviderProps) {
       try {
         const user = await account.get();
         console.log(user);
-        setAuth(user);
+        // Only set user as authenticated if email is verified
+        if (user.emailVerification) {
+          setAuth(user);
+        } else {
+          console.log("Email not verified yet");
+          setAuth(null);
+        }
       } catch (error) {
         console.log("error", error);
         setAuth(null);
@@ -147,33 +159,63 @@ export function AuthProvider(props: ProviderProps) {
     email: string,
     password: string,
     username: string
-  ): Promise<SignInResponse> => {
+  ): Promise<SignUpResponse> => {
     try {
       console.log(email, password, username);
 
       // create the user
-      await account.create({
+      const newUser = await account.create({
         userId: ID.unique(),
         email: email,
         password: password,
         name: username
-    });
+      });
 
-      // create the session by logging in
-      await account.createEmailPasswordSession({
-            email: email, 
-            password: password
-        })
-      // get Account information for the user
-      const user = await account.get();
-      setAuth(user);
-      return { data: user, error: undefined };
+      // Create email verification token
+      await account.createEmailToken({
+        userId: newUser.$id,
+        email: email,
+        phrase: false
+      });
+
+      return { data: { userId: newUser.$id, email: email }, error: undefined };
     } catch (error) {
-      setAuth(null);
       return { error: error as Error, data: undefined };
     }
   };
 
+  /**
+   * Verify email with token sent to user
+   * @param userId 
+   * @param secret 
+   * @param email
+   * @param password
+   * @returns 
+   */
+  const verifyEmail = async (
+    userId: string,
+    secret: string,
+    email: string,  
+    password: string  
+  ): Promise<SignInResponse> => {
+    try {
+      try {
+        await account.deleteSession("current");
+      } catch (e) {
+      }
+
+      await account.createSession(userId, secret.trim());
+
+      const updatedUser = await account.get();
+      setAuth(updatedUser);
+      
+      return { data: updatedUser, error: undefined };
+    } catch (error) {
+      console.error("Verification failed:", error);
+      setAuth(null);
+      return { error: error as Error, data: undefined };
+    }
+  };
   useProtectedRoute(user);
 
   return (
@@ -182,6 +224,7 @@ export function AuthProvider(props: ProviderProps) {
         signIn: login,
         signOut: logout,
         signUp: createAcount,
+        verifyEmail: verifyEmail,
         user,
         authInitialized,
       }}
