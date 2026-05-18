@@ -15,9 +15,10 @@ export default function VerifyEmail() {
   }>();
 
   const router = useRouter();
-  const { verifyEmail } = useAuth();
+  const { verifyEmail, resendVerification } = useAuth();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const handleVerify = async () => {
     if (!code || !userId) {
@@ -48,6 +49,18 @@ export default function VerifyEmail() {
       Alert.alert("Error", "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!userId || !email) return;
+    setResending(true);
+    const { error } = await resendVerification(userId, email);
+    setResending(false);
+    if (error) {
+      Alert.alert("Error", error.message);
+    } else {
+      Alert.alert("Code Sent", `A new verification code was sent to ${email}.`);
     }
   };
 
@@ -83,6 +96,12 @@ export default function VerifyEmail() {
 
         <ThemedView style={styles.footerContainer}>
           <ThemedText
+            style={styles.resendText}
+            onPress={resending ? undefined : handleResend}
+          >
+            {resending ? "Sending..." : "Resend verification code"}
+          </ThemedText>
+          <ThemedText
             style={styles.backLink}
             onPress={() => router.replace("/sign-in")}
           >
@@ -100,6 +119,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, lineHeight: 22, opacity: 0.8 },
   inputContainer: { marginBottom: 24 },
   label: { marginBottom: 8, color: "#455fff", fontWeight: "600" },
-  footerContainer: { marginTop: 32, alignItems: "center" },
+  footerContainer: { marginTop: 32, alignItems: "center", gap: 16 },
+  resendText: { fontWeight: "500", color: "#455fff" },
   backLink: { fontWeight: "500", color: "#455fff", textDecorationLine: "underline" },
 });
