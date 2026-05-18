@@ -9,16 +9,12 @@ import { spacing } from '@/theme/theme';
 import { useState } from 'react';
 import { Plus, CheckCircle } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useTasks } from '@/context/tasks';
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-export type Task = {
-  id: string; title: string; description: string; dueDate: string;
-  status: "todo" | "in-progress" | "done"; completed: boolean;
-}
-
 export default function TasksScreen() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const { tasks, addTask, updateTask, deleteTask, toggleComplete } = useTasks();
   const [formVisible, setFormVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
@@ -28,13 +24,13 @@ export default function TasksScreen() {
   const filtered = tasks.filter(t => filter === "active" ? !t.completed : filter === "completed" ? t.completed : true);
 
   const handleAdd = (data: TaskFormData) => {
-    setTasks([{ id: generateId(), ...data, completed: false }, ...tasks]);
+    addTask({ id: generateId(), ...data, completed: false });
     setFormVisible(false);
   };
 
   const handleEdit = (data: TaskFormData) => {
     if (!editingId) return;
-    setTasks(tasks.map(t => t.id === editingId ? { ...t, ...data } : t));
+    updateTask(editingId, data);
     setEditingId(null); setFormVisible(false);
   };
 
@@ -69,8 +65,8 @@ export default function TasksScreen() {
           renderItem={({ item }) => (
             <TaskCard {...item}
               onEdit={() => { setEditingId(item.id); setFormVisible(true); }}
-              onDelete={() => setTasks(tasks.filter(t => t.id !== item.id))}
-              onToggleComplete={() => setTasks(tasks.map(t => t.id === item.id ? { ...t, completed: !t.completed } : t))}
+              onDelete={() => deleteTask(item.id)}
+              onToggleComplete={() => toggleComplete(item.id)}
               style={styles.taskCard}
             />
           )}

@@ -33,7 +33,7 @@ export function TaskCard({ title, description, dueDate, status = "todo", complet
           <View style={styles.textBox}>
             <Text style={[styles.title, completed && styles.struck]} numberOfLines={1}>{title}</Text>
             {description ? <Text style={[styles.desc, { color: mutedColor }, completed && styles.struck]} numberOfLines={1}>{description}</Text> : null}
-            {dueDate ? <Text style={[styles.due, { color: mutedColor }]}>Due: {dueDate}</Text> : null}
+            {dueDate ? <Text style={[styles.due, { color: mutedColor }]}>Due: {(() => { const d = new Date(dueDate); return isNaN(d.getTime()) ? dueDate : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }); })()}</Text> : null}
           </View>
         </Pressable>
         <View style={styles.right}>

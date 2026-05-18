@@ -9,6 +9,8 @@ import { ThemedDivider } from '@/components/themed-divider';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '../../context/auth';
 import { useHouse } from '@/context/house';
+import { useTasks } from '@/context/tasks';
+import { useEvents } from '@/context/events';
 import { spacing } from '@/theme/theme';
 import { useRouter } from 'expo-router';
 import { Calendar, CheckCircle, ShoppingCart, DollarSign, ArrowRight, Users } from 'lucide-react-native';
@@ -29,7 +31,24 @@ function QuickCard({ label, icon, color, onPress }: { label: string; icon: React
 export default function HomeScreen() {
   const { user } = useAuth();
   const { addUser } = useHouse();
+  const { tasks } = useTasks();
+  const { events } = useEvents();
   const router = useRouter();
+
+  const todayStr = (() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  })();
+
+  const tasksDueToday = tasks.filter(t => {
+    if (!t.dueDate || t.completed) return false;
+    const d = new Date(t.dueDate);
+    if (isNaN(d.getTime())) return false;
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return ds === todayStr;
+  });
+
+  const eventsToday = events.filter(e => e.date === todayStr);
   const emailRef = useRef("");
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
@@ -59,20 +78,30 @@ export default function HomeScreen() {
           <QuickCard label="Calendar" icon={<Calendar size={22} color="white" />} color="#e0a500" onPress={() => router.push('/(tabs)/calendar')} />
         </View>
 
-        {/* Upcoming Events */}
+        {/* Today's Events */}
         <View style={styles.sectionHeader}>
-          <ThemedText style={styles.sectionTitle}>Upcoming Events</ThemedText>
+          <ThemedText style={styles.sectionTitle}>Today's Events</ThemedText>
           <Pressable onPress={() => router.push('/(tabs)/calendar')}>
             <ThemedText style={[styles.viewAll, { color: mutedColor }]}>VIEW ALL</ThemedText>
           </Pressable>
         </View>
-        <ThemedCard variant="outlined" style={styles.emptyCard}>
-          <View style={[styles.emptyIconBox, { backgroundColor: `${primaryColor}20` }]}>
-            <Calendar size={24} color={primaryColor} />
-          </View>
-          <ThemedText style={styles.emptyText}>No upcoming events</ThemedText>
-          <ThemedText style={[styles.emptySub, { color: mutedColor }]}>Go to Calendar to add one</ThemedText>
-        </ThemedCard>
+        {eventsToday.length === 0 ? (
+          <ThemedCard variant="outlined" style={styles.emptyCard}>
+            <View style={[styles.emptyIconBox, { backgroundColor: `${primaryColor}20` }]}>
+              <Calendar size={24} color={primaryColor} />
+            </View>
+            <ThemedText style={styles.emptyText}>No events today</ThemedText>
+            <ThemedText style={[styles.emptySub, { color: mutedColor }]}>Go to Calendar to add one</ThemedText>
+          </ThemedCard>
+        ) : eventsToday.map(event => (
+          <ThemedCard key={event.id} variant="outlined" style={styles.eventCard}>
+            <View style={[styles.eventAccent, { backgroundColor: primaryColor }]} />
+            <View style={styles.eventInfo}>
+              <ThemedText style={[styles.eventTime, { color: mutedColor }]}>{(() => { const [h,m] = event.time.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; return `${h%12||12}:${String(m).padStart(2,'0')} ${ap}`; })()}</ThemedText>
+              <ThemedText style={styles.eventTitle} numberOfLines={1}>{event.title}</ThemedText>
+            </View>
+          </ThemedCard>
+        ))}
 
         {/* Tasks Due Today */}
         <View style={styles.sectionHeader}>
@@ -81,10 +110,17 @@ export default function HomeScreen() {
             <ThemedText style={[styles.viewAll, { color: mutedColor }]}>VIEW ALL</ThemedText>
           </Pressable>
         </View>
-        <ThemedCard variant="outlined" style={styles.emptyTaskCard}>
-          <CheckCircle size={18} color={mutedColor} />
-          <ThemedText style={[styles.emptyTaskText, { color: mutedColor }]}>No tasks due today</ThemedText>
-        </ThemedCard>
+        {tasksDueToday.length === 0 ? (
+          <ThemedCard variant="outlined" style={styles.emptyTaskCard}>
+            <CheckCircle size={18} color={mutedColor} />
+            <ThemedText style={[styles.emptyTaskText, { color: mutedColor }]}>No tasks due today</ThemedText>
+          </ThemedCard>
+        ) : tasksDueToday.map(task => (
+          <ThemedCard key={task.id} variant="outlined" style={styles.taskDueCard}>
+            <CheckCircle size={18} color={primaryColor} />
+            <ThemedText style={styles.taskDueTitle} numberOfLines={1}>{task.title}</ThemedText>
+          </ThemedCard>
+        ))}
 
         <ThemedDivider style={styles.divider} />
 
@@ -141,6 +177,14 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 12 },
   emptyTaskCard: { marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, marginBottom: spacing.lg },
   emptyTaskText: { fontSize: 14 },
+  eventCard: { marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: 0, marginBottom: spacing.sm, overflow: 'hidden' },
+  eventAccent: { width: 4, alignSelf: 'stretch', borderRadius: 2, marginLeft: spacing.sm },
+  eventInfo: { flex: 1, paddingRight: spacing.sm },
+  eventTime: { fontSize: 11, fontWeight: '600', marginBottom: 1 },
+  eventTitle: { fontWeight: '600', fontSize: 14 },
+  eventDesc: { fontSize: 12 },
+  taskDueCard: { marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.sm },
+  taskDueTitle: { fontSize: 14, fontWeight: '500', flex: 1 },
   divider: { marginHorizontal: spacing.lg, marginVertical: spacing.lg },
   inviteCard: { marginHorizontal: spacing.lg, gap: spacing.md },
   inviteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

@@ -4,12 +4,12 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
 import { spacing } from '@/theme/theme';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, Trash2, Calendar } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Plus, X, Trash2, Calendar, Clock } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
+import { useEvents } from '@/context/events';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
-type CalEvent = { id: string; title: string; date: string; description: string };
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -18,15 +18,33 @@ function toDateStr(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+function toTimeStr(date: Date) {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function formatTime(time: string) {
+  const [h, m] = time.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function sortByTime(a: { time: string }, b: { time: string }) {
+  return a.time.localeCompare(b.time);
+}
+
 export default function CalendarScreen() {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState(toDateStr(now.getFullYear(), now.getMonth(), now.getDate()));
-  const [events, setEvents] = useState<CalEvent[]>([]);
+  const { events, addEvent, deleteEvent } = useEvents();
   const [formVisible, setFormVisible] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [newTime, setNewTime] = useState<Date>(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showIOSTimePicker, setShowIOSTimePicker] = useState(false);
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const borderColor = useThemeColor({}, 'inputBorder');
   const inputBg = useThemeColor({}, 'inputBackground');
@@ -46,17 +64,28 @@ export default function CalendarScreen() {
     else setViewMonth(m => m + 1);
   };
 
-  const eventsByDate = events.reduce<Record<string, CalEvent[]>>((acc, e) => {
+  const eventsByDate = events.reduce<Record<string, typeof events>>((acc, e) => {
     acc[e.date] = acc[e.date] ? [...acc[e.date], e] : [e];
     return acc;
   }, {});
 
-  const selectedEvents = eventsByDate[selectedDate] ?? [];
+  const selectedEvents = [...(eventsByDate[selectedDate] ?? [])].sort(sortByTime);
 
-  const addEvent = () => {
+  const handleAddEvent = () => {
     if (!newTitle.trim()) return;
-    setEvents(prev => [...prev, { id: generateId(), title: newTitle.trim(), date: selectedDate, description: newDesc.trim() }]);
-    setNewTitle(''); setNewDesc(''); setFormVisible(false);
+    addEvent({
+      id: generateId(),
+      title: newTitle.trim(),
+      date: selectedDate,
+      time: toTimeStr(newTime),
+      description: newDesc.trim(),
+    });
+    setNewTitle(''); setNewDesc(''); setNewTime(new Date()); setFormVisible(false);
+  };
+
+  const onTimeChange = (_event: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') setShowTimePicker(false);
+    if (selected) setNewTime(selected);
   };
 
   const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
@@ -124,10 +153,14 @@ export default function CalendarScreen() {
             <ThemedCard key={event.id} variant="outlined" style={styles.eventCard}>
               <View style={[styles.eventAccent, { backgroundColor: primaryColor }]} />
               <View style={styles.eventBody}>
+                <View style={styles.eventTimeRow}>
+                  <Clock size={12} color={mutedColor} />
+                  <ThemedText style={[styles.eventTime, { color: mutedColor }]}>{formatTime(event.time)}</ThemedText>
+                </View>
                 <ThemedText style={styles.eventTitle}>{event.title}</ThemedText>
                 {event.description ? <ThemedText style={[styles.eventDesc, { color: mutedColor }]}>{event.description}</ThemedText> : null}
               </View>
-              <Pressable onPress={() => setEvents(prev => prev.filter(e => e.id !== event.id))} hitSlop={8}>
+              <Pressable onPress={() => deleteEvent(event.id)} hitSlop={8} style={styles.deleteBtn}>
                 <Trash2 size={16} color="#ff3748" />
               </Pressable>
             </ThemedCard>
@@ -145,9 +178,10 @@ export default function CalendarScreen() {
                   <X size={24} color={primaryColor} />
                 </Pressable>
               </View>
-              <View style={styles.modalForm}>
+              <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
                 <ThemedText style={styles.fieldLabel}>Date</ThemedText>
                 <ThemedText style={[styles.dateDisplay, { color: primaryColor }]}>{selectedDate}</ThemedText>
+
                 <ThemedText style={styles.fieldLabel}>Title</ThemedText>
                 <TextInput
                   style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]}
@@ -157,6 +191,39 @@ export default function CalendarScreen() {
                   onChangeText={setNewTitle}
                   autoFocus
                 />
+
+                <ThemedText style={styles.fieldLabel}>Time</ThemedText>
+                <Pressable
+                  onPress={() => Platform.OS === 'ios' ? setShowIOSTimePicker(v => !v) : setShowTimePicker(true)}
+                  style={[styles.timeBtn, { borderColor }]}
+                >
+                  <Clock size={16} color={primaryColor} />
+                  <ThemedText style={[styles.timeBtnText, { color: primaryColor }]}>{formatTime(toTimeStr(newTime))}</ThemedText>
+                </Pressable>
+
+                {/* iOS inline spinner */}
+                {Platform.OS === 'ios' && showIOSTimePicker && (
+                  <View style={[styles.iosPicker, { borderColor }]}>
+                    <DateTimePicker
+                      value={newTime}
+                      mode="time"
+                      display="spinner"
+                      onChange={onTimeChange}
+                      style={{ height: 150 }}
+                    />
+                  </View>
+                )}
+
+                {/* Android clock picker */}
+                {Platform.OS === 'android' && showTimePicker && (
+                  <DateTimePicker
+                    value={newTime}
+                    mode="time"
+                    display="clock"
+                    onChange={onTimeChange}
+                  />
+                )}
+
                 <ThemedText style={styles.fieldLabel}>Description (optional)</ThemedText>
                 <TextInput
                   style={[styles.input, styles.inputMulti, { backgroundColor: inputBg, borderColor, color: textColor }]}
@@ -167,12 +234,13 @@ export default function CalendarScreen() {
                   multiline
                   numberOfLines={3}
                 />
-              </View>
+              </ScrollView>
+
               <View style={styles.modalFooter}>
                 <Pressable onPress={() => setFormVisible(false)} style={[styles.footerBtn, { borderColor }]}>
                   <ThemedText style={styles.footerBtnText}>Cancel</ThemedText>
                 </Pressable>
-                <Pressable onPress={addEvent} style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor }]}>
+                <Pressable onPress={handleAddEvent} style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor }]}>
                   <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>Save</ThemedText>
                 </Pressable>
               </View>
@@ -209,11 +277,17 @@ const styles = StyleSheet.create({
   eventCard: { marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: 0, overflow: 'hidden' },
   eventAccent: { width: 4, alignSelf: 'stretch', borderRadius: 2, marginLeft: spacing.sm },
   eventBody: { flex: 1, paddingRight: spacing.xs },
+  eventTimeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
+  eventTime: { fontSize: 11, fontWeight: '600' },
   eventTitle: { fontWeight: '600', fontSize: 15, marginBottom: 2 },
   eventDesc: { fontSize: 12 },
+  deleteBtn: { paddingRight: spacing.sm },
+  timeBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
+  timeBtnText: { fontSize: 15, fontWeight: '600' },
+  iosPicker: { borderWidth: 1, borderRadius: 12, marginTop: spacing.sm, overflow: 'hidden' },
   modalWrapper: { flex: 1, justifyContent: 'flex-end' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalSheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingTop: spacing.lg },
+  modalSheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingTop: spacing.lg, maxHeight: '85%' },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.1)' },
   modalForm: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   fieldLabel: { fontWeight: '600', marginBottom: spacing.xs, marginTop: spacing.sm },
