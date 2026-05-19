@@ -1,4 +1,4 @@
-import { StyleSheet, View, Pressable, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Pressable, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
@@ -41,6 +41,7 @@ export default function CalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(toDateStr(now.getFullYear(), now.getMonth(), now.getDate()));
   const { events, addEvent, deleteEvent } = useEvents();
   const [formVisible, setFormVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newTime, setNewTime] = useState<Date>(new Date());
@@ -73,9 +74,15 @@ export default function CalendarScreen() {
 
   const selectedEvents = [...(eventsByDate[selectedDate] ?? [])].sort((a, b) => (a.time as string).localeCompare(b.time as string));
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newTitle.trim()) return;
-    addEvent({ title: newTitle.trim(), date: selectedDate, time: toTimeStr(newTime), description: newDesc.trim() }, []);
+    setSaving(true);
+    const { error } = await addEvent({ title: newTitle.trim(), date: selectedDate, time: toTimeStr(newTime), description: newDesc.trim() }, []);
+    setSaving(false);
+    if (error) {
+      Alert.alert("Error", error?.message ?? "Could not save event.");
+      return;
+    }
     setNewTitle(''); setNewDesc(''); setNewTime(new Date()); setFormVisible(false);
   };
 
@@ -235,8 +242,8 @@ export default function CalendarScreen() {
                 <Pressable onPress={() => setFormVisible(false)} style={[styles.footerBtn, { borderColor }]}>
                   <ThemedText style={styles.footerBtnText}>Cancel</ThemedText>
                 </Pressable>
-                <Pressable onPress={handleAddEvent} style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor }]}>
-                  <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>Save</ThemedText>
+                <Pressable onPress={handleAddEvent} disabled={saving} style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor, opacity: saving ? 0.6 : 1 }]}>
+                  <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>{saving ? 'Saving...' : 'Save'}</ThemedText>
                 </Pressable>
               </View>
             </ThemedView>

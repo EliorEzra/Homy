@@ -1,125 +1,166 @@
-import {
-  StyleSheet,
-  Alert
-} from "react-native";
+import { StyleSheet, Alert, View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useAuth } from "@/context/auth";
 import { Stack, useRouter } from "expo-router";
-import { useRef } from "react";
-import { ThemedView, MainView } from "@/components/themed-view";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedButton } from "@/components/themed-button";
+import { useRef, useState } from "react";
 import { ThemedInput } from "@/components/themed-input";
+import { ThemedButton } from '@/components/themed-button';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedCard } from "@/components/themed-card";
+import { useThemeColor } from "@/hooks/use-theme-color";
+import { spacing } from "@/theme/theme";
+import { Home, User, Mail, Lock } from "lucide-react-native";
 
 export default function SignUp() {
   const { signUp } = useAuth();
   const router = useRouter();
+  const primaryColor = useThemeColor({}, 'buttonBackground');
+  const mutedColor = useThemeColor({}, 'tabIconDefault');
 
   const emailRef = useRef("");
   const passwordRef = useRef("");
   const confirmPasswordRef = useRef("");
   const userNameRef = useRef("");
-  
+  const [loading, setLoading] = useState(false);
+
   return (
     <>
-      <Stack.Screen options={{ title: "sign up", headerShown: false }} />
-      <MainView>
-        <ThemedView>
-          <ThemedText style={styles.label}>UserName</ThemedText>
-          <ThemedInput
-            placeholder="Username"
-            autoCapitalize="none"
-            nativeID="userName"
-            onChangeText={(text) => {
-              userNameRef.current = text;
-            }}
-          />
-        </ThemedView>
-        <ThemedView>
-          <ThemedText style={styles.label}>Email</ThemedText>
-          <ThemedInput
-            placeholder="email"
-            autoCapitalize="none"
-            nativeID="email"
-            type="email"
-            onChangeText={(text) => {
-              emailRef.current = text;
-            }}
-          />
-        </ThemedView>
-        <ThemedView>
-          <ThemedText style={styles.label}>Password</ThemedText>
-          <ThemedInput
-            placeholder="password"
-            nativeID="password"
-            type="password"
-            onChangeText={(text) => {
-              passwordRef.current = text;
-            }}
-          />
-        </ThemedView>
-        <ThemedView>
-          <ThemedText style={styles.label}>Confirm Password</ThemedText>
-          <ThemedInput
-            placeholder="confirm password"
-            nativeID="confirmPassword"
-            type="password"
-            onChangeText={(text) => {
-              confirmPasswordRef.current = text;
-            }}
-          />
-        </ThemedView>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ThemedView style={styles.container}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        <ThemedButton
-          onPress={async () => {
-            if (!emailRef.current || !passwordRef.current || !userNameRef.current) {
-              Alert.alert("Error", "Please fill in all fields");
-              return;
-            }
-            if (passwordRef.current !== confirmPasswordRef.current) {
-              Alert.alert("Error", "Passwords do not match. Please try again.");
-              return;
-            }
-            if (passwordRef.current.length < 8) {
-              Alert.alert("Error", "Password must be at least 8 characters long");
-              return;
-            }
-            const { data, error } = await signUp(
-              emailRef.current,
-              passwordRef.current,
-              userNameRef.current
-            );
-            if (data) {
-              // Redirect to email verification screen
-              router.push({
-                pathname: "/verify-email",
-                params: {
-                  userId: data.userId,
-                  email: data.email,
-                  password: passwordRef.current,
-                },
-              });
-            } else {
-              Alert.alert("Error signing up", error?.message);
-            }
-          }}
-          title="Create Account"
-        />
-        <ThemedView style={{ marginTop: 32 }}>
-          <ThemedText
-            style={{ fontWeight: "500" }}
-            onPress={() => router.replace("/sign-in")}
-          >
-            Click Here To Return To Sign In Page
-          </ThemedText>
-        </ThemedView>
-      </MainView>
+            <View style={styles.logoSection}>
+              <View style={[styles.logoIcon, { backgroundColor: primaryColor }]}>
+                <Home size={32} color="white" />
+              </View>
+              <ThemedText style={styles.logoText}>HOMY</ThemedText>
+              <ThemedText style={[styles.tagline, { color: mutedColor }]}>Your household, organized</ThemedText>
+            </View>
+
+            <ThemedText style={styles.title}>Create an account</ThemedText>
+            <ThemedText style={[styles.subtitle, { color: mutedColor }]}>
+              Join Homy and start organizing your household.
+            </ThemedText>
+
+            <ThemedCard variant="elevated" style={styles.card}>
+              <View style={styles.field}>
+                <View style={styles.fieldHeader}>
+                  <User size={16} color={primaryColor} />
+                  <ThemedText style={styles.label}>Username</ThemedText>
+                </View>
+                <ThemedInput
+                  placeholder="Your name"
+                  autoCapitalize="words"
+                  nativeID="userName"
+                  onChangeText={(text) => { userNameRef.current = text; }}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <View style={styles.fieldHeader}>
+                  <Mail size={16} color={primaryColor} />
+                  <ThemedText style={styles.label}>Email</ThemedText>
+                </View>
+                <ThemedInput
+                  placeholder="you@example.com"
+                  autoCapitalize="none"
+                  nativeID="email"
+                  type="email"
+                  onChangeText={(text) => { emailRef.current = text; }}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <View style={styles.fieldHeader}>
+                  <Lock size={16} color={primaryColor} />
+                  <ThemedText style={styles.label}>Password</ThemedText>
+                </View>
+                <ThemedInput
+                  placeholder="At least 8 characters"
+                  nativeID="password"
+                  type="password"
+                  onChangeText={(text) => { passwordRef.current = text; }}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <View style={styles.fieldHeader}>
+                  <Lock size={16} color={primaryColor} />
+                  <ThemedText style={styles.label}>Confirm Password</ThemedText>
+                </View>
+                <ThemedInput
+                  placeholder="Repeat your password"
+                  nativeID="confirmPassword"
+                  type="password"
+                  onChangeText={(text) => { confirmPasswordRef.current = text; }}
+                />
+              </View>
+            </ThemedCard>
+
+            <ThemedButton
+              onPress={async () => {
+                if (!emailRef.current || !passwordRef.current || !userNameRef.current) {
+                  Alert.alert("Missing Fields", "Please fill in all fields.");
+                  return;
+                }
+                if (passwordRef.current !== confirmPasswordRef.current) {
+                  Alert.alert("Password Mismatch", "Passwords do not match. Please try again.");
+                  return;
+                }
+                if (passwordRef.current.length < 8) {
+                  Alert.alert("Weak Password", "Password must be at least 8 characters long.");
+                  return;
+                }
+                setLoading(true);
+                const { data, error } = await signUp(emailRef.current, passwordRef.current, userNameRef.current);
+                setLoading(false);
+                if (data) {
+                  router.push({
+                    pathname: "/verify-email",
+                    params: { userId: data.userId, email: data.email, password: passwordRef.current },
+                  });
+                } else {
+                  Alert.alert("Sign Up Error", error?.message);
+                }
+              }}
+              title={loading ? "Creating account..." : "Create Account"}
+              disabled={loading}
+              style={styles.button}
+            />
+
+            <View style={styles.footer}>
+              <ThemedText style={[styles.footerText, { color: mutedColor }]}>Already have an account?</ThemedText>
+              <ThemedText
+                style={[styles.footerLink, { color: primaryColor }]}
+                onPress={() => router.replace("/sign-in")}
+              >
+                Sign in
+              </ThemedText>
+            </View>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ThemedView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  label: {
-    marginBottom: 4,
-    color: "#455fff",
-  }
+  container: { flex: 1 },
+  scroll: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
+  logoSection: { alignItems: 'center', marginBottom: spacing.xl },
+  logoIcon: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  logoText: { fontSize: 28, fontWeight: '900', letterSpacing: 4, marginBottom: spacing.xs },
+  tagline: { fontSize: 14 },
+  title: { fontSize: 24, fontWeight: '800', marginBottom: spacing.sm },
+  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: spacing.lg },
+  card: { gap: spacing.lg, marginBottom: spacing.lg },
+  field: { gap: spacing.xs },
+  fieldHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  label: { fontWeight: '700', fontSize: 15 },
+  button: { marginTop: spacing.sm },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xl },
+  footerText: { fontSize: 14 },
+  footerLink: { fontSize: 14, fontWeight: '700' },
 });
