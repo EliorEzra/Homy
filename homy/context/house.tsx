@@ -253,13 +253,14 @@ export function HouseProvider(props: ProviderProps) {
             }
         }
     }
-    const segments = useSegments();
     useEffect(() => {
+        if (!user) {
+            setHouse(null);
+            setHouseInitialized(true);
+            return;
+        }
         (async () => {
           try {
-            if (user === null) {
-                throw new Error("User must be logged in before trying to get house")
-            }
             const houses = await team.list({total: true});
             if (houses.total > 1) {
                 throw new Error("User belongs to more than 1 house");
@@ -280,9 +281,8 @@ export function HouseProvider(props: ProviderProps) {
             setHouse(null);
           }
           setHouseInitialized(true);
-          console.log("initialize (house)", house);
         })();
-      }, [user, segments]);
+      }, [user?.$id]);
 
     useProtectedRoute(house)
     
