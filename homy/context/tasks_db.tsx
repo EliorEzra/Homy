@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { account, databases } from "@/lib/appwrite";
-import { Models, ID, Permission, TablesDB, Role } from "react-native-appwrite";
+import { databases } from "@/lib/appwrite";
+import { Models, ID, Permission, Role } from "react-native-appwrite";
 import { Task, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
 
@@ -36,134 +36,97 @@ interface TasksDBContextValue {
   tasks: Models.Row[] | null;
 }
 
-const TasksContext = createContext<TasksDBContextValue | undefined>(
-  undefined
-);
-
+const TasksContext = createContext<TasksDBContextValue | undefined>(undefined);
 
 export function TasksProvider(props: ProviderProps) {
   const [tasks, setTasks] = useState<Models.Row[] | null>([]);
+  const { user } = useAuth();
 
   async function getTasks(): Promise<getTasksResponse> {
     try {
       const response = await databases.listRows({
         databaseId: DatabaseIDs.DATABASE,
-        tableId: DatabaseIDs.TASKS
-      })
-
-      setTasks(response.rows)
-
-      return {
-        data: response,
-        error: undefined
-      }
+        tableId: DatabaseIDs.TASKS,
+      });
+      setTasks(response.rows);
+      return { data: response, error: undefined };
     } catch (error) {
-      return {
-        data: undefined,
-        error: error as Error
-      }
+      return { data: undefined, error: error as Error };
     }
   }
 
   async function addTask(data: Task, permissions: string[]): Promise<addTaskResponse> {
-    const {user} = useAuth();
-    if (typeof data.task_text === undefined) {
-      throw new Error("Task text cannot be empty");
-    }
+    if (!data.task_text) throw new Error("Task text cannot be empty");
     try {
-      if (user === null) {
-        throw new Error("User must be logged in before creating tasks")
-      }
-      const response = await databases.createRow({
+      if (user === null) throw new Error("User must be logged in before creating tasks");
+      await databases.createRow({
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.TASKS,
         rowId: ID.unique(),
         data: {
           task_text: data.task_text,
-          completed: data.completed,
-          userId: user.$id
+          description: data.description ?? "",
+          due_date: data.due_date ?? "",
+          status: data.status ?? "todo",
+          completed: data.completed ?? false,
+          userId: user.$id,
         },
         permissions: [
-          Permission.read(Role.user(user.$id as string)),
-          Permission.write(Role.user(user.$id as string)),
-          ...permissions]
-      })
-
-      return {
-        data: {},
-        error: undefined
-      }
+          Permission.read(Role.user(user.$id)),
+          Permission.write(Role.user(user.$id)),
+          ...permissions,
+        ],
+      });
+      await getTasks();
+      return { data: {}, error: undefined };
     } catch (error) {
-      return {
-        data: undefined,
-        error: error as Error
-      }
+      return { data: undefined, error: error as Error };
     }
   }
 
   async function updateTask(taskId: string, data: Task, permissions?: string[]): Promise<updateTaskResponse> {
     try {
-      const response = await databases.updateRow({
+      await databases.updateRow({
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.TASKS,
         rowId: taskId,
         data: data,
-        permissions: permissions
-      })
-
-      return {
-        data: {},
-        error: undefined
-      }
+        permissions: permissions,
+      });
+      await getTasks();
+      return { data: {}, error: undefined };
     } catch (error) {
-      return {
-        data: undefined,
-        error: error as Error
-      }
+      return { data: undefined, error: error as Error };
     }
   }
 
   async function deleteTask(taskId: string): Promise<deleteTaskResponse> {
     try {
-      const response = await databases.deleteRow({
+      await databases.deleteRow({
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.TASKS,
-        rowId: taskId
-      })
-      return {
-        data: {},
-        error: undefined
-      }
+        rowId: taskId,
+      });
+      await getTasks();
+      return { data: {}, error: undefined };
     } catch (error) {
-      return {
-        data: undefined,
-        error: error as Error
-      }
+      return { data: undefined, error: error as Error };
     }
   }
 
   useEffect(() => {
-      (async () => {
-        try {
-          const response = await getTasks();
-        } catch (error) {
-          console.log("error", error);
-          setTasks(null);
-        }
-        console.log("initialize (tasks)", tasks);
-      })();
-    }, []);
+    (async () => {
+      try {
+        await getTasks();
+      } catch (error) {
+        console.log("error", error);
+        setTasks(null);
+      }
+    })();
+  }, []);
 
   return (
-    <TasksContext.Provider
-      value={{
-        getTasks: getTasks,
-        addTask: addTask,
-        updateTask: updateTask,
-        deleteTask: deleteTask,
-        tasks,
-      }}
-    >
+    <TasksContext.Provider value={{ getTasks, addTask, updateTask, deleteTask, tasks }}>
       {props.children}
     </TasksContext.Provider>
   );
@@ -171,10 +134,6 @@ export function TasksProvider(props: ProviderProps) {
 
 export const useTasks = () => {
   const tasksContext = useContext(TasksContext);
-
-  if (!tasksContext) {
-    throw new Error("useTasks must be used within an TasksContextProvider");
-  }
-
+  if (!tasksContext) throw new Error("useTasks must be used within a TasksProvider");
   return tasksContext;
 };

@@ -9,32 +9,45 @@ import { spacing } from '@/theme/theme';
 import { useState } from 'react';
 import { Plus, CheckCircle } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useTasks } from '@/context/tasks';
+import { useTasks } from '@/context/tasks_db';
+import { Models } from 'react-native-appwrite';
+
+function rowToTask(row: Models.Row) {
+  return {
+    id: row.$id,
+    title: row.task_text ?? '',
+    description: row.description ?? '',
+    dueDate: row.due_date ?? '',
+    status: (row.status ?? 'todo') as "todo" | "in-progress" | "done",
+    completed: row.completed ?? false,
+  };
+}
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 export default function TasksScreen() {
-  const { tasks, addTask, updateTask, deleteTask, toggleComplete } = useTasks();
+  const { tasks, addTask, updateTask, deleteTask } = useTasks();
   const [formVisible, setFormVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const borderColor = useThemeColor({}, 'inputBorder');
 
-  const filtered = tasks.filter(t => filter === "active" ? !t.completed : filter === "completed" ? t.completed : true);
+  const uiTasks = (tasks ?? []).map(rowToTask);
+  const filtered = uiTasks.filter(t => filter === "active" ? !t.completed : filter === "completed" ? t.completed : true);
 
   const handleAdd = (data: TaskFormData) => {
-    addTask({ id: generateId(), ...data, completed: false });
+    addTask({ task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, completed: false }, []);
     setFormVisible(false);
   };
 
   const handleEdit = (data: TaskFormData) => {
     if (!editingId) return;
-    updateTask(editingId, data);
+    updateTask(editingId, { task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status });
     setEditingId(null); setFormVisible(false);
   };
 
-  const editingTask = editingId ? tasks.find(t => t.id === editingId) : null;
+  const editingTask = editingId ? uiTasks.find(t => t.id === editingId) : null;
 
   return (
     <ThemedView style={styles.container}>
@@ -66,7 +79,7 @@ export default function TasksScreen() {
             <TaskCard {...item}
               onEdit={() => { setEditingId(item.id); setFormVisible(true); }}
               onDelete={() => deleteTask(item.id)}
-              onToggleComplete={() => toggleComplete(item.id)}
+              onToggleComplete={() => updateTask(item.id, { completed: !item.completed })}
               style={styles.taskCard}
             />
           )}

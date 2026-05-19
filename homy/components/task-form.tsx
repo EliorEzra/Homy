@@ -182,7 +182,7 @@ export function TaskForm({ visible, initialData, isEditing = false, onSubmit, on
                   <DateTimePicker
                     value={dueDate ?? new Date()}
                     mode="date"
-                    display="spinner"
+                    display="default"
                     onChange={onAndroidDateChange}
                   />
                 )}
@@ -191,7 +191,7 @@ export function TaskForm({ visible, initialData, isEditing = false, onSubmit, on
                   <DateTimePicker
                     value={dueDate ?? new Date()}
                     mode="time"
-                    display="clock"
+                    display="spinner"
                     onChange={onAndroidTimeChange}
                   />
                 )}

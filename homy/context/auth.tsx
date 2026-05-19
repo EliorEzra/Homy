@@ -25,7 +25,7 @@ interface AuthContextValue {
   resendVerification: (userId: string, email: string) => Promise<{ error?: Error }>;
   signOut: () => Promise<SignOutResponse>;
   user: Models.User<Models.Preferences> | null;
-  unverifiedUser: { id: string; email: string } | null;
+  unverifiedUser: Models.User<Models.Preferences> | null;
   authInitialized: boolean;
 }
 
@@ -37,7 +37,7 @@ const AuthContext = React.createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider(props: ProviderProps) {
   const [user, setAuth] = React.useState<Models.User<Models.Preferences> | null>(null);
-  const [unverifiedUser, setUnverifiedUser] = React.useState<{ id: string; email: string } | null>(null);
+  const [unverifiedUser, setUnverifiedUser] = React.useState<Models.User<Models.Preferences> | null>(null);
   const [authInitialized, setAuthInitialized] = React.useState<boolean>(false);
 
   const useProtectedRoute = (user: Models.User<Models.Preferences> | null) => {
@@ -62,7 +62,7 @@ export function AuthProvider(props: ProviderProps) {
       if (!user && unverifiedUser && !onVerifyScreen) {
         router.push({
           pathname: "/verify-email",
-          params: { userId: unverifiedUser.id, email: unverifiedUser.email, password: "" },
+          params: { userId: unverifiedUser.$id, email: unverifiedUser.email, password: "" },
         });
       } else if (!user && !unverifiedUser && !inAuthGroup) {
         router.push({ pathname: "/sign-in" });
@@ -81,7 +81,7 @@ export function AuthProvider(props: ProviderProps) {
           setAuth(fetchedUser);
         } else {
           console.log("Email not verified yet");
-          setUnverifiedUser({ id: fetchedUser.$id, email: fetchedUser.email });
+          setUnverifiedUser(fetchedUser);
           setAuth(null);
         }
       } catch (error) {
@@ -113,7 +113,7 @@ export function AuthProvider(props: ProviderProps) {
         setUnverifiedUser(null);
       } else {
         setAuth(null);
-        setUnverifiedUser({ id: fetchedUser.$id, email: fetchedUser.email });
+        setUnverifiedUser(fetchedUser);
       }
       return { data: fetchedUser, error: undefined };
     } catch (error) {

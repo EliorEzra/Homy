@@ -22,6 +22,7 @@ const getStatusBadge = (status?: string) => {
 export function TaskCard({ title, description, dueDate, status = "todo", completed = false, onEdit, onDelete, onToggleComplete, style }: TaskCardProps) {
   const iconColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
+  const textColor = useThemeColor({}, 'text');
 
   return (
     <ThemedCard variant="outlined" style={[styles.card, completed && styles.completedCard, style]}>
@@ -31,7 +32,7 @@ export function TaskCard({ title, description, dueDate, status = "todo", complet
             {completed ? <CheckCircle size={24} color={iconColor} strokeWidth={2.5} /> : <Circle size={24} color={mutedColor} strokeWidth={2} />}
           </View>
           <View style={styles.textBox}>
-            <Text style={[styles.title, completed && styles.struck]} numberOfLines={1}>{title}</Text>
+            <Text style={[styles.title, { color: textColor }, completed && styles.struck]} numberOfLines={1}>{title}</Text>
             {description ? <Text style={[styles.desc, { color: mutedColor }, completed && styles.struck]} numberOfLines={1}>{description}</Text> : null}
             {dueDate ? <Text style={[styles.due, { color: mutedColor }]}>Due: {(() => { const d = new Date(dueDate); return isNaN(d.getTime()) ? dueDate : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }); })()}</Text> : null}
           </View>

@@ -9,8 +9,8 @@ import { ThemedDivider } from '@/components/themed-divider';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '../../context/auth';
 import { useHouse } from '@/context/house';
-import { useTasks } from '@/context/tasks';
-import { useEvents } from '@/context/events';
+import { useTasks } from '@/context/tasks_db';
+import { useEvents } from '@/context/events_db';
 import { spacing } from '@/theme/theme';
 import { useRouter } from 'expo-router';
 import { Calendar, CheckCircle, ShoppingCart, DollarSign, ArrowRight, Users } from 'lucide-react-native';
@@ -40,15 +40,15 @@ export default function HomeScreen() {
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
   })();
 
-  const tasksDueToday = tasks.filter(t => {
-    if (!t.dueDate || t.completed) return false;
-    const d = new Date(t.dueDate);
+  const tasksDueToday = (tasks ?? []).filter(t => {
+    if (!t.due_date || t.completed) return false;
+    const d = new Date(t.due_date as string);
     if (isNaN(d.getTime())) return false;
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     return ds === todayStr;
   });
 
-  const eventsToday = events.filter(e => e.date === todayStr);
+  const eventsToday = (events ?? []).filter(e => e.date === todayStr);
   const emailRef = useRef("");
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
@@ -94,11 +94,11 @@ export default function HomeScreen() {
             <ThemedText style={[styles.emptySub, { color: mutedColor }]}>Go to Calendar to add one</ThemedText>
           </ThemedCard>
         ) : eventsToday.map(event => (
-          <ThemedCard key={event.id} variant="outlined" style={styles.eventCard}>
+          <ThemedCard key={event.$id} variant="outlined" style={styles.eventCard}>
             <View style={[styles.eventAccent, { backgroundColor: primaryColor }]} />
             <View style={styles.eventInfo}>
-              <ThemedText style={[styles.eventTime, { color: mutedColor }]}>{(() => { const [h,m] = event.time.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; return `${h%12||12}:${String(m).padStart(2,'0')} ${ap}`; })()}</ThemedText>
-              <ThemedText style={styles.eventTitle} numberOfLines={1}>{event.title}</ThemedText>
+              <ThemedText style={[styles.eventTime, { color: mutedColor }]}>{(() => { const [h,m] = (event.time as string).split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; return `${h%12||12}:${String(m).padStart(2,'0')} ${ap}`; })()}</ThemedText>
+              <ThemedText style={styles.eventTitle} numberOfLines={1}>{event.title as string}</ThemedText>
             </View>
           </ThemedCard>
         ))}
@@ -116,9 +116,9 @@ export default function HomeScreen() {
             <ThemedText style={[styles.emptyTaskText, { color: mutedColor }]}>No tasks due today</ThemedText>
           </ThemedCard>
         ) : tasksDueToday.map(task => (
-          <ThemedCard key={task.id} variant="outlined" style={styles.taskDueCard}>
+          <ThemedCard key={task.$id} variant="outlined" style={styles.taskDueCard}>
             <CheckCircle size={18} color={primaryColor} />
-            <ThemedText style={styles.taskDueTitle} numberOfLines={1}>{task.title}</ThemedText>
+            <ThemedText style={styles.taskDueTitle} numberOfLines={1}>{task.task_text as string}</ThemedText>
           </ThemedCard>
         ))}
 

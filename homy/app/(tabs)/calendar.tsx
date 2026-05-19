@@ -6,7 +6,8 @@ import { spacing } from '@/theme/theme';
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, Trash2, Calendar, Clock } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { useEvents } from '@/context/events';
+import { useEvents } from '@/context/events_db';
+import { Models } from 'react-native-appwrite';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -64,22 +65,17 @@ export default function CalendarScreen() {
     else setViewMonth(m => m + 1);
   };
 
-  const eventsByDate = events.reduce<Record<string, typeof events>>((acc, e) => {
-    acc[e.date] = acc[e.date] ? [...acc[e.date], e] : [e];
+  const eventsByDate = (events ?? []).reduce<Record<string, Models.Row[]>>((acc, e) => {
+    const d = e.date as string;
+    acc[d] = acc[d] ? [...acc[d], e] : [e];
     return acc;
   }, {});
 
-  const selectedEvents = [...(eventsByDate[selectedDate] ?? [])].sort(sortByTime);
+  const selectedEvents = [...(eventsByDate[selectedDate] ?? [])].sort((a, b) => (a.time as string).localeCompare(b.time as string));
 
   const handleAddEvent = () => {
     if (!newTitle.trim()) return;
-    addEvent({
-      id: generateId(),
-      title: newTitle.trim(),
-      date: selectedDate,
-      time: toTimeStr(newTime),
-      description: newDesc.trim(),
-    });
+    addEvent({ title: newTitle.trim(), date: selectedDate, time: toTimeStr(newTime), description: newDesc.trim() }, []);
     setNewTitle(''); setNewDesc(''); setNewTime(new Date()); setFormVisible(false);
   };
 
@@ -150,17 +146,17 @@ export default function CalendarScreen() {
               <ThemedText style={[styles.emptyEventsText, { color: mutedColor }]}>No events this day</ThemedText>
             </ThemedCard>
           ) : selectedEvents.map(event => (
-            <ThemedCard key={event.id} variant="outlined" style={styles.eventCard}>
+            <ThemedCard key={event.$id} variant="outlined" style={styles.eventCard}>
               <View style={[styles.eventAccent, { backgroundColor: primaryColor }]} />
               <View style={styles.eventBody}>
                 <View style={styles.eventTimeRow}>
                   <Clock size={12} color={mutedColor} />
-                  <ThemedText style={[styles.eventTime, { color: mutedColor }]}>{formatTime(event.time)}</ThemedText>
+                  <ThemedText style={[styles.eventTime, { color: mutedColor }]}>{formatTime(event.time as string)}</ThemedText>
                 </View>
-                <ThemedText style={styles.eventTitle}>{event.title}</ThemedText>
-                {event.description ? <ThemedText style={[styles.eventDesc, { color: mutedColor }]}>{event.description}</ThemedText> : null}
+                <ThemedText style={styles.eventTitle}>{event.title as string}</ThemedText>
+                {event.description ? <ThemedText style={[styles.eventDesc, { color: mutedColor }]}>{event.description as string}</ThemedText> : null}
               </View>
-              <Pressable onPress={() => deleteEvent(event.id)} hitSlop={8} style={styles.deleteBtn}>
+              <Pressable onPress={() => deleteEvent(event.$id)} hitSlop={8} style={styles.deleteBtn}>
                 <Trash2 size={16} color="#ff3748" />
               </Pressable>
             </ThemedCard>
@@ -209,7 +205,6 @@ export default function CalendarScreen() {
                       mode="time"
                       display="spinner"
                       onChange={onTimeChange}
-                      style={{ height: 150 }}
                     />
                   </View>
                 )}
@@ -219,7 +214,7 @@ export default function CalendarScreen() {
                   <DateTimePicker
                     value={newTime}
                     mode="time"
-                    display="clock"
+                    display="spinner"
                     onChange={onTimeChange}
                   />
                 )}
