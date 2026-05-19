@@ -59,10 +59,11 @@ export function TasksProvider(props: ProviderProps) {
     if (!data.task_text) throw new Error("Task text cannot be empty");
     try {
       if (user === null) throw new Error("User must be logged in before creating tasks");
+      const rowId = ID.unique();
       await databases.createRow({
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.TASKS,
-        rowId: ID.unique(),
+        rowId,
         data: {
           task_text: data.task_text,
           description: data.description ?? "",
@@ -77,7 +78,7 @@ export function TasksProvider(props: ProviderProps) {
           ...permissions,
         ],
       });
-      await getTasks();
+      setTasks(prev => [...(prev ?? []), { $id: rowId, task_text: data.task_text, description: data.description ?? "", due_date: data.due_date ?? "", status: data.status ?? "todo", completed: data.completed ?? false, userId: user.$id } as Models.Row]);
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -93,7 +94,7 @@ export function TasksProvider(props: ProviderProps) {
         data: data,
         permissions: permissions,
       });
-      await getTasks();
+      setTasks(prev => (prev ?? []).map(t => t.$id === taskId ? { ...t, ...data } : t));
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -107,7 +108,7 @@ export function TasksProvider(props: ProviderProps) {
         tableId: DatabaseIDs.TASKS,
         rowId: taskId,
       });
-      await getTasks();
+      setTasks(prev => (prev ?? []).filter(t => t.$id !== taskId));
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -115,6 +116,7 @@ export function TasksProvider(props: ProviderProps) {
   }
 
   useEffect(() => {
+    if (!user) return;
     (async () => {
       try {
         await getTasks();
@@ -123,7 +125,7 @@ export function TasksProvider(props: ProviderProps) {
         setTasks(null);
       }
     })();
-  }, []);
+  }, [user?.$id]);
 
   return (
     <TasksContext.Provider value={{ getTasks, addTask, updateTask, deleteTask, tasks }}>

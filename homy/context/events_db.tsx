@@ -47,10 +47,11 @@ export function EventsProvider(props: ProviderProps) {
     if (!data.title) throw new Error("Event title cannot be empty");
     try {
       if (user === null) throw new Error("User must be logged in before creating events");
+      const rowId = ID.unique();
       await databases.createRow({
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.EVENTS,
-        rowId: ID.unique(),
+        rowId,
         data: {
           title: data.title,
           date: data.date ?? "",
@@ -64,7 +65,7 @@ export function EventsProvider(props: ProviderProps) {
           ...permissions,
         ],
       });
-      await getEvents();
+      setEvents(prev => [...(prev ?? []), { $id: rowId, title: data.title, date: data.date ?? "", time: data.time ?? "", description: data.description ?? "", userId: user.$id } as Models.Row]);
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -78,7 +79,7 @@ export function EventsProvider(props: ProviderProps) {
         tableId: DatabaseIDs.EVENTS,
         rowId: eventId,
       });
-      await getEvents();
+      setEvents(prev => (prev ?? []).filter(e => e.$id !== eventId));
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -86,10 +87,11 @@ export function EventsProvider(props: ProviderProps) {
   }
 
   useEffect(() => {
+    if (!user) return;
     (async () => {
       await getEvents();
     })();
-  }, []);
+  }, [user?.$id]);
 
   return (
     <EventsContext.Provider value={{ addEvent, deleteEvent, events }}>
