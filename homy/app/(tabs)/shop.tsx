@@ -1,4 +1,4 @@
-import { StyleSheet, View, FlatList, Pressable, TextInput } from 'react-native';
+import { StyleSheet, View, FlatList, Pressable, TextInput, Alert } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
@@ -8,8 +8,8 @@ import { spacing } from '@/theme/theme';
 import { useState } from 'react';
 import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, X } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
-
-const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+import { useShop } from '@/context/shop_db';
+import { Models } from 'react-native-appwrite';
 
 type Category = 'Produce' | 'Dairy' | 'Meat' | 'Bakery' | 'Frozen' | 'Drinks' | 'Other';
 const CATEGORIES: Category[] = ['Produce', 'Dairy', 'Meat', 'Bakery', 'Frozen', 'Drinks', 'Other'];
@@ -19,13 +19,8 @@ const CATEGORY_COLORS: Record<Category, string> = {
   Bakery: '#e0a500', Frozen: '#0ea5e9', Drinks: '#8b5cf6', Other: '#6b7280',
 };
 
-type ShopItem = {
-  id: string; name: string; quantity: string;
-  category: Category; checked: boolean;
-};
-
 export default function ShopScreen() {
-  const [items, setItems] = useState<ShopItem[]>([]);
+  const { shopItems, addShopItem, updateShopItem, deleteShopItem, clearCompleted } = useShop();
   const [filter, setFilter] = useState<'all' | 'pending' | 'done'>('all');
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -36,26 +31,39 @@ export default function ShopScreen() {
   const inputBg = useThemeColor({}, 'inputBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
   const textColor = useThemeColor({}, 'text');
-  const bgColor = useThemeColor({}, 'background');
 
+  const items = shopItems ?? [];
   const filtered = items.filter(i =>
     filter === 'pending' ? !i.checked : filter === 'done' ? i.checked : true
   );
 
-  const addItem = () => {
+  const handleAdd = async () => {
     if (!newName.trim()) return;
-    setItems(prev => [{ id: generateId(), name: newName.trim(), quantity: newQty.trim() || '1', category: newCategory, checked: false }, ...prev]);
+    const { error } = await addShopItem({ name: newName.trim(), quantity: newQty.trim() || '1', category: newCategory, checked: false });
+    if (error) { Alert.alert("Error", error.message); return; }
     setNewName(''); setNewQty(''); setNewCategory('Other'); setAdding(false);
   };
 
-  const clearCompleted = () => setItems(prev => prev.filter(i => !i.checked));
+  const handleToggle = async (item: Models.Row) => {
+    const { error } = await updateShopItem(item.$id, { checked: !item.checked });
+    if (error) Alert.alert("Error", error.message);
+  };
+
+  const handleDelete = async (itemId: string) => {
+    const { error } = await deleteShopItem(itemId);
+    if (error) Alert.alert("Error", error.message);
+  };
+
+  const handleClearCompleted = async () => {
+    await clearCompleted();
+  };
 
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
         <ThemedText type="title">Shopping List</ThemedText>
         {items.some(i => i.checked) && (
-          <Pressable onPress={clearCompleted} style={[styles.clearBtn, { borderColor }]}>
+          <Pressable onPress={handleClearCompleted} style={[styles.clearBtn, { borderColor }]}>
             <ThemedText style={[styles.clearText, { color: mutedColor }]}>Clear done</ThemedText>
           </Pressable>
         )}
@@ -105,7 +113,7 @@ export default function ShopScreen() {
               <X size={16} color={mutedColor} />
               <ThemedText style={[styles.addBtnText, { color: mutedColor }]}>Cancel</ThemedText>
             </Pressable>
-            <Pressable onPress={addItem} style={[styles.addBtn, { backgroundColor: primaryColor, borderColor: primaryColor }]}>
+            <Pressable onPress={handleAdd} style={[styles.addBtn, { backgroundColor: primaryColor, borderColor: primaryColor }]}>
               <Plus size={16} color="white" />
               <ThemedText style={[styles.addBtnText, { color: 'white' }]}>Add Item</ThemedText>
             </Pressable>
@@ -127,22 +135,27 @@ export default function ShopScreen() {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item.$id}
           renderItem={({ item }) => (
             <ThemedCard variant="outlined" style={[styles.itemCard, item.checked && styles.checkedCard]}>
-              <Pressable style={styles.itemLeft} onPress={() => setItems(prev => prev.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i))}>
+              <Pressable style={styles.itemLeft} onPress={() => handleToggle(item)}>
                 {item.checked
                   ? <CheckCircle size={22} color={primaryColor} strokeWidth={2.5} />
                   : <Circle size={22} color={mutedColor} strokeWidth={2} />}
                 <View style={styles.itemInfo}>
-                  <ThemedText style={[styles.itemName, item.checked && styles.struckText]} numberOfLines={1}>{item.name}</ThemedText>
+                  <ThemedText style={[styles.itemName, item.checked && styles.struckText]} numberOfLines={1}>{item.name as string}</ThemedText>
                   <View style={styles.itemMeta}>
-                    <ThemedText style={[styles.itemQty, { color: mutedColor }]}>x{item.quantity}</ThemedText>
-                    <ThemedBadge label={item.category} variant="primary" size="sm" style={{ backgroundColor: `${CATEGORY_COLORS[item.category]}20` } as any} />
+                    <ThemedText style={[styles.itemQty, { color: mutedColor }]}>x{item.quantity as string}</ThemedText>
+                    <ThemedBadge
+                      label={item.category as string}
+                      variant="primary"
+                      size="sm"
+                      style={{ backgroundColor: `${CATEGORY_COLORS[item.category as Category] ?? '#6b7280'}20` } as any}
+                    />
                   </View>
                 </View>
               </Pressable>
-              <Pressable onPress={() => setItems(prev => prev.filter(i => i.id !== item.id))} hitSlop={8}>
+              <Pressable onPress={() => handleDelete(item.$id)} hitSlop={8}>
                 <Trash2 size={18} color="#ff3748" />
               </Pressable>
             </ThemedCard>

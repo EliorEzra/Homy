@@ -1,0 +1,98 @@
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { databases } from "@/lib/appwrite";
+import { Models, ID, Permission, Role } from "react-native-appwrite";
+import { Expense, DatabaseIDs } from "./db_models";
+import { useAuth } from "./auth";
+
+interface ProviderProps {
+  children: React.ReactNode;
+}
+
+interface ExpensesDBContextValue {
+  expenses: Models.Row[] | null;
+  addExpense: (data: Expense) => Promise<{ data?: {}; error?: Error }>;
+  deleteExpense: (expenseId: string) => Promise<{ data?: {}; error?: Error }>;
+}
+
+const ExpensesContext = createContext<ExpensesDBContextValue | undefined>(undefined);
+
+export function ExpensesProvider(props: ProviderProps) {
+  const [expenses, setExpenses] = useState<Models.Row[] | null>([]);
+  const { user } = useAuth();
+
+  async function getExpenses() {
+    try {
+      const response = await databases.listRows({
+        databaseId: DatabaseIDs.DATABASE,
+        tableId: DatabaseIDs.EXPENSES,
+      });
+      setExpenses(response.rows);
+    } catch (error) {
+      console.log("error fetching expenses", error);
+      setExpenses(null);
+    }
+  }
+
+  async function addExpense(data: Expense): Promise<{ data?: {}; error?: Error }> {
+    if (!data.title) throw new Error("Expense title cannot be empty");
+    try {
+      if (!user) throw new Error("User must be logged in");
+      const rowId = ID.unique();
+      await databases.createRow({
+        databaseId: DatabaseIDs.DATABASE,
+        tableId: DatabaseIDs.EXPENSES,
+        rowId,
+        data: {
+          title: data.title,
+          amount: data.amount ?? 0,
+          paid_by: data.paid_by ?? "",
+          split_with: data.split_with ?? "",
+          date: data.date ?? new Date().toLocaleDateString(),
+          userId: user.$id,
+        },
+        permissions: [
+          Permission.read(Role.user(user.$id)),
+          Permission.write(Role.user(user.$id)),
+        ],
+      });
+      setExpenses(prev => [
+        { $id: rowId, title: data.title, amount: data.amount ?? 0, paid_by: data.paid_by ?? "", split_with: data.split_with ?? "", date: data.date ?? new Date().toLocaleDateString(), userId: user.$id } as Models.Row,
+        ...(prev ?? []),
+      ]);
+      return { data: {} };
+    } catch (error) {
+      return { error: error as Error };
+    }
+  }
+
+  async function deleteExpense(expenseId: string): Promise<{ data?: {}; error?: Error }> {
+    try {
+      await databases.deleteRow({
+        databaseId: DatabaseIDs.DATABASE,
+        tableId: DatabaseIDs.EXPENSES,
+        rowId: expenseId,
+      });
+      setExpenses(prev => (prev ?? []).filter(e => e.$id !== expenseId));
+      return { data: {} };
+    } catch (error) {
+      return { error: error as Error };
+    }
+  }
+
+  useEffect(() => {
+    if (!user) return;
+    getExpenses();
+  }, [user?.$id]);
+
+  return (
+    <ExpensesContext.Provider value={{ expenses, addExpense, deleteExpense }}>
+      {props.children}
+    </ExpensesContext.Provider>
+  );
+}
+
+export const useExpenses = () => {
+  const ctx = useContext(ExpensesContext);
+  if (!ctx) throw new Error("useExpenses must be used within an ExpensesProvider");
+  return ctx;
+};

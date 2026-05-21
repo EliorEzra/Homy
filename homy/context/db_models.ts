@@ -2,6 +2,8 @@ export const DatabaseIDs = {
     DATABASE: '69f0d87e002066c90e1f',
     TASKS: 'tasks',
     EVENTS: 'events',
+    SHOP_ITEMS: 'shop_items',
+    EXPENSES: 'expenses',
 }
 
 export type Task = {
@@ -18,5 +20,22 @@ export type CalEvent = {
     date?: string;
     time?: string;
     description?: string;
+    userId?: string;
+}
+
+export type ShopItem = {
+    name?: string;
+    quantity?: string;
+    category?: string;
+    checked?: boolean;
+    userId?: string;
+}
+
+export type Expense = {
+    title?: string;
+    amount?: number;
+    paid_by?: string;
+    split_with?: string; // comma-separated, e.g. "Me,Alex"
+    date?: string;
     userId?: string;
 }

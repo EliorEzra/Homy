@@ -1,52 +1,64 @@
-import { StyleSheet, View, FlatList, Pressable, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, FlatList, Pressable, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
 import { ThemedEmptyState } from '@/components/themed-empty-state';
 import { spacing } from '@/theme/theme';
 import { useState } from 'react';
-import { Plus, DollarSign, Trash2, X, Users } from 'lucide-react-native';
+import { Plus, DollarSign, Trash2, X } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/context/auth';
-
-const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
-type Expense = {
-  id: string; title: string; amount: number;
-  paidBy: string; splitWith: string[]; date: string;
-};
+import { useExpenses } from '@/context/expenses_db';
+import { Models } from 'react-native-appwrite';
 
 const MEMBERS = ['Me', 'Alex', 'Jordan', 'Sam'];
 
 export default function FinancesScreen() {
   const { user } = useAuth();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const { expenses, addExpense, deleteExpense } = useExpenses();
   const [formVisible, setFormVisible] = useState(false);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState('Me');
   const [splitWith, setSplitWith] = useState<string[]>(['Me', 'Alex']);
+  const [saving, setSaving] = useState(false);
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const borderColor = useThemeColor({}, 'inputBorder');
   const inputBg = useThemeColor({}, 'inputBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
   const textColor = useThemeColor({}, 'text');
 
-  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
-  const myExpenses = expenses.filter(e => e.splitWith.includes('Me'));
-  const myShare = myExpenses.reduce((s, e) => s + e.amount / e.splitWith.length, 0);
-  const iPaid = expenses.filter(e => e.paidBy === 'Me').reduce((s, e) => s + e.amount, 0);
+  const expenseList = expenses ?? [];
+
+  const totalSpent = expenseList.reduce((s, e) => s + (e.amount as number), 0);
+  const myExpenses = expenseList.filter(e => (e.split_with as string).split(',').includes('Me'));
+  const myShare = myExpenses.reduce((s, e) => {
+    const members = (e.split_with as string).split(',').filter(Boolean);
+    return s + (e.amount as number) / (members.length || 1);
+  }, 0);
+  const iPaid = expenseList.filter(e => e.paid_by === 'Me').reduce((s, e) => s + (e.amount as number), 0);
   const balance = iPaid - myShare;
 
-  const addExpense = () => {
+  const handleAdd = async () => {
     const amt = parseFloat(amount);
     if (!title.trim() || isNaN(amt) || amt <= 0) return;
-    setExpenses(prev => [{
-      id: generateId(), title: title.trim(), amount: amt,
-      paidBy, splitWith, date: new Date().toLocaleDateString()
-    }, ...prev]);
+    setSaving(true);
+    const { error } = await addExpense({
+      title: title.trim(),
+      amount: amt,
+      paid_by: paidBy,
+      split_with: splitWith.join(','),
+      date: new Date().toLocaleDateString(),
+    });
+    setSaving(false);
+    if (error) { Alert.alert("Error", error.message); return; }
     setTitle(''); setAmount(''); setPaidBy('Me'); setSplitWith(['Me', 'Alex']);
     setFormVisible(false);
+  };
+
+  const handleDelete = async (expenseId: string) => {
+    const { error } = await deleteExpense(expenseId);
+    if (error) Alert.alert("Error", error.message);
   };
 
   const toggleSplit = (member: string) => {
@@ -70,7 +82,7 @@ export default function FinancesScreen() {
         </ThemedCard>
       </View>
 
-      {expenses.length === 0 ? (
+      {expenseList.length === 0 ? (
         <ThemedEmptyState
           title="No Expenses Yet"
           description="Add your first shared expense"
@@ -83,10 +95,11 @@ export default function FinancesScreen() {
         />
       ) : (
         <FlatList
-          data={expenses}
-          keyExtractor={item => item.id}
+          data={expenseList}
+          keyExtractor={item => item.$id}
           renderItem={({ item }) => {
-            const perPerson = (item.amount / item.splitWith.length).toFixed(2);
+            const members = (item.split_with as string).split(',').filter(Boolean);
+            const perPerson = ((item.amount as number) / (members.length || 1)).toFixed(2);
             return (
               <ThemedCard variant="outlined" style={styles.expenseCard}>
                 <View style={styles.expenseRow}>
@@ -94,17 +107,17 @@ export default function FinancesScreen() {
                     <DollarSign size={18} color={primaryColor} />
                   </View>
                   <View style={styles.expenseInfo}>
-                    <ThemedText style={styles.expenseTitle} numberOfLines={1}>{item.title}</ThemedText>
+                    <ThemedText style={styles.expenseTitle} numberOfLines={1}>{item.title as string}</ThemedText>
                     <ThemedText style={[styles.expenseMeta, { color: mutedColor }]}>
-                      Paid by {item.paidBy} · {item.date}
+                      Paid by {item.paid_by as string} · {item.date as string}
                     </ThemedText>
                     <ThemedText style={[styles.expenseSplit, { color: mutedColor }]}>
-                      ${perPerson}/person · {item.splitWith.join(', ')}
+                      ${perPerson}/person · {members.join(', ')}
                     </ThemedText>
                   </View>
                   <View style={styles.expenseRight}>
-                    <ThemedText style={styles.expenseAmount}>${item.amount.toFixed(2)}</ThemedText>
-                    <Pressable onPress={() => setExpenses(prev => prev.filter(e => e.id !== item.id))} hitSlop={8}>
+                    <ThemedText style={styles.expenseAmount}>${(item.amount as number).toFixed(2)}</ThemedText>
+                    <Pressable onPress={() => handleDelete(item.$id)} hitSlop={8}>
                       <Trash2 size={16} color="#ff3748" />
                     </Pressable>
                   </View>
@@ -172,8 +185,8 @@ export default function FinancesScreen() {
                 <Pressable onPress={() => setFormVisible(false)} style={[styles.footerBtn, { borderColor }]}>
                   <ThemedText style={styles.footerBtnText}>Cancel</ThemedText>
                 </Pressable>
-                <Pressable onPress={addExpense} style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor }]}>
-                  <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>Add</ThemedText>
+                <Pressable onPress={handleAdd} disabled={saving} style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor, opacity: saving ? 0.6 : 1 }]}>
+                  <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>{saving ? 'Saving...' : 'Add'}</ThemedText>
                 </Pressable>
               </View>
             </ThemedView>
