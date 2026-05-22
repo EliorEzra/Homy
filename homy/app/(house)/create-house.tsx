@@ -1,0 +1,167 @@
+import { StyleSheet, Alert, View, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { useHouse } from "@/context/house";
+import { Stack, useRouter } from "expo-router";
+import { useRef, useState } from "react";
+import { ThemedInput } from "@/components/themed-input";
+import { ThemedButton } from '@/components/themed-button';
+import { ThemedView } from '@/components/themed-view';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedCard } from "@/components/themed-card";
+import { useThemeColor } from "@/hooks/use-theme-color";
+import { spacing } from "@/theme/theme";
+import { Home, X, Users } from "lucide-react-native";
+
+function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
+  const [input, setInput] = useState('');
+  const primaryColor = useThemeColor({}, 'buttonBackground');
+  const borderColor = useThemeColor({}, 'inputBorder');
+  const inputBg = useThemeColor({}, 'inputBackground');
+  const mutedColor = useThemeColor({}, 'tabIconDefault');
+  const textColor = useThemeColor({}, 'text');
+
+  const addTag = (val: string) => {
+    const trimmed = val.trim().replace(/[,.]$/, '').trim();
+    if (trimmed && !tags.includes(trimmed)) onChange([...tags, trimmed]);
+    setInput('');
+  };
+
+  const handleChange = (text: string) => {
+    if (text.endsWith(',') || text.endsWith('.')) { addTag(text); return; }
+    setInput(text);
+  };
+
+  return (
+    <View style={[tagStyles.container, { borderColor, backgroundColor: inputBg }]}>
+      <View style={tagStyles.tagsRow}>
+        {tags.map(tag => (
+          <View key={tag} style={[tagStyles.tag, { backgroundColor: `${primaryColor}20`, borderColor: `${primaryColor}40` }]}>
+            <ThemedText style={[tagStyles.tagText, { color: primaryColor }]}>{tag}</ThemedText>
+            <Pressable onPress={() => onChange(tags.filter(t => t !== tag))} hitSlop={4}>
+              <X size={12} color={primaryColor} />
+            </Pressable>
+          </View>
+        ))}
+        <TextInput
+          style={[tagStyles.input, { color: textColor }]}
+          placeholder={tags.length === 0 ? "e.g. parent, child..." : "Add role..."}
+          placeholderTextColor={mutedColor}
+          value={input}
+          onChangeText={handleChange}
+          onSubmitEditing={() => addTag(input)}
+          returnKeyType="done"
+          blurOnSubmit={false}
+        />
+      </View>
+    </View>
+  );
+}
+
+const tagStyles = StyleSheet.create({
+  container: { borderWidth: 1, borderRadius: 10, padding: spacing.sm, minHeight: 52 },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
+  tag: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1 },
+  tagText: { fontSize: 13, fontWeight: '600' },
+  input: { fontSize: 14, paddingVertical: 4, minWidth: 120, flex: 1 },
+});
+
+export default function CreateHouse() {
+  const { createHouse } = useHouse();
+  const router = useRouter();
+  const primaryColor = useThemeColor({}, 'buttonBackground');
+  const mutedColor = useThemeColor({}, 'tabIconDefault');
+  const houseNameRef = useRef("");
+  const [roles, setRoles] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ThemedView style={styles.container}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+            {/* Header */}
+            <View style={styles.logoSection}>
+              <View style={[styles.logoIcon, { backgroundColor: primaryColor }]}>
+                <Home size={32} color="white" />
+              </View>
+              <ThemedText style={styles.logoText}>HOMY</ThemedText>
+              <ThemedText style={[styles.tagline, { color: mutedColor }]}>Set up your household</ThemedText>
+            </View>
+
+            <ThemedText style={styles.title}>Create a House</ThemedText>
+            <ThemedText style={[styles.subtitle, { color: mutedColor }]}>
+              Give your home a name and define the roles for your household members.
+            </ThemedText>
+
+            {/* Form */}
+            <ThemedCard variant="elevated" style={styles.card}>
+              <View style={styles.field}>
+                <View style={styles.fieldHeader}>
+                  <Home size={16} color={primaryColor} />
+                  <ThemedText style={styles.label}>House Name</ThemedText>
+                </View>
+                <ThemedInput
+                  type="text"
+                  placeholder="e.g. The Smith Family"
+                  autoCapitalize="words"
+                  nativeID="house_name"
+                  onChangeText={(text) => { houseNameRef.current = text; }}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <View style={styles.fieldHeader}>
+                  <Users size={16} color={primaryColor} />
+                  <ThemedText style={styles.label}>House Roles</ThemedText>
+                </View>
+                <ThemedText style={[styles.hint, { color: mutedColor }]}>
+                  Type a role and press Enter or add a comma to add it
+                </ThemedText>
+                <TagInput tags={roles} onChange={setRoles} />
+              </View>
+            </ThemedCard>
+
+            <ThemedButton
+              onPress={async () => {
+                if (!houseNameRef.current.trim()) {
+                  Alert.alert("Missing Name", "Please enter a house name.");
+                  return;
+                }
+                setLoading(true);
+                const { data, error } = await createHouse(houseNameRef.current.trim(), roles);
+                setLoading(false);
+                if (data) {
+                  router.replace("/(tabs)");
+                } else {
+                  Alert.alert("Error Creating House", error?.message);
+                }
+              }}
+              title={loading ? "Creating..." : "Create House"}
+              disabled={loading}
+              style={styles.button}
+            />
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </ThemedView>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  scroll: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
+  logoSection: { alignItems: 'center', marginBottom: spacing.xl },
+  logoIcon: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  logoText: { fontSize: 28, fontWeight: '900', letterSpacing: 4, marginBottom: spacing.xs },
+  tagline: { fontSize: 14 },
+  title: { fontSize: 24, fontWeight: '800', marginBottom: spacing.sm },
+  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: spacing.lg },
+  card: { gap: spacing.lg, marginBottom: spacing.lg },
+  field: { gap: spacing.xs },
+  fieldHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  label: { fontWeight: '700', fontSize: 15 },
+  hint: { fontSize: 12, marginBottom: spacing.xs },
+  button: { marginTop: spacing.sm },
+});
