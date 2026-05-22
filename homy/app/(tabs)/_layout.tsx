@@ -11,7 +11,6 @@ function TabIcon({ Icon, color, size }: { Icon: React.ElementType; color: string
 }
 
 export default function TabLayout() {
-  console.log("Tab layout")
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const defaultColor = useThemeColor({}, 'tabIconDefault');
   const bgColor = useThemeColor({}, 'background');
