@@ -48,6 +48,7 @@ interface HouseContextValue {
   leaveHouse: () => Promise<LeaveHouseResponse>;
   deleteHouse: () => Promise<DeleteHouseResponse>;
   house: Models.Membership | null;
+  houseInitialized: boolean;
 }
 
 interface ProviderProps {
@@ -63,50 +64,6 @@ export function HouseProvider(props: ProviderProps) {
     const [houseInitialized, setHouseInitialized] = useState<boolean>(false);
     
     const {user} = useAuth()
-    // This hook will protect the route access based on if the user has a house.
-    const useProtectedRoute = (house: Models.Membership | null) => {
-        const segments = useSegments();
-        const router = useRouter();
-
-        // checking that navigation is all good;
-        const [isNavigationReady, setNavigationReady] = useState(false);
-        const rootNavigation = useNavigationContainerRef();
-
-        useEffect(() => {
-            const unsubscribe = rootNavigation?.addListener("state", (event) => {
-            setNavigationReady(true);
-            });
-            return function cleanup() {
-            if (unsubscribe) {
-                unsubscribe();
-            }
-            };
-        }, [rootNavigation]);
-
-        useEffect(() => {
-            if (!isNavigationReady) {
-            return;
-            }
-            const isInMainAppArea = segments[0] === "(tabs)";
-            const isInAuthArea = segments[0] === "(auth)";
-            if (!houseInitialized) return;
-            if (isInAuthArea) return;
-            // If there's no user (and we're somehow here)
-            if (!user) {
-                router.push({pathname: "/(auth)/sign-in"})
-            }
-            else if (
-            // If the user is does not have a house and the initial segment is not the main app area (tabs).
-            !house
-            ) {
-            // Redirect to the house creation page page.
-            router.push({pathname: "/(house)"});
-            } else if (house && !isInMainAppArea) {
-            // Redirect away from the house creation page.
-            router.push("/(tabs)/home");
-            }
-        }, [house, user, segments, houseInitialized, isNavigationReady]);
-    };
 
     async function createHouse(name: string, roles?: string[]): Promise<CreateHouseResponse> {
         try {
@@ -193,7 +150,6 @@ export function HouseProvider(props: ProviderProps) {
         }
     }
 
-
     // TODO: Set up app linking
     // https://docs.expo.dev/linking/android-app-links/
     async function acceptHouseInvite(teamId: string, secret: string): Promise<AcceptHouseInviteResponse> {
@@ -254,12 +210,13 @@ export function HouseProvider(props: ProviderProps) {
         }
     }
     useEffect(() => {
-        if (!user) {
+        (async () => {
+          setHouseInitialized(false);
+          if (!user) {
             setHouse(null);
             setHouseInitialized(true);
             return;
-        }
-        (async () => {
+          }
           try {
             const houses = await team.list({total: true});
             if (houses.total > 1) {
@@ -282,9 +239,7 @@ export function HouseProvider(props: ProviderProps) {
           }
           setHouseInitialized(true);
         })();
-      }, [user?.$id]);
-
-    useProtectedRoute(house)
+      }, [user]);
     
     return (
         <HouseContext.Provider value={{
@@ -295,7 +250,8 @@ export function HouseProvider(props: ProviderProps) {
             acceptHouseInvite: acceptHouseInvite,
             leaveHouse: leaveHouse,
             deleteHouse: deleteHouse,
-            house
+            house,
+            houseInitialized
         }}>
             {props.children}
         </HouseContext.Provider>

@@ -40,43 +40,11 @@ export function AuthProvider(props: ProviderProps) {
   const [unverifiedUser, setUnverifiedUser] = React.useState<Models.User<Models.Preferences> | null>(null);
   const [authInitialized, setAuthInitialized] = React.useState<boolean>(false);
 
-  const useProtectedRoute = (user: Models.User<Models.Preferences> | null) => {
-    const segments = useSegments();
-    const router = useRouter();
-    const [isNavigationReady, setNavigationReady] = useState(false);
-    const rootNavigation = useNavigationContainerRef();
-
-    useEffect(() => {
-      const unsubscribe = rootNavigation?.addListener("state", () => {
-        setNavigationReady(true);
-      });
-      return () => { if (unsubscribe) unsubscribe(); };
-    }, [rootNavigation]);
-
-    React.useEffect(() => {
-      if (!isNavigationReady || !authInitialized) return;
-
-      const inAuthGroup = segments[0] === "(auth)";
-      const onVerifyScreen = segments[1] === "verify-email";
-
-      if (!user && unverifiedUser && !onVerifyScreen) {
-        router.push({
-          pathname: "/verify-email",
-          params: { userId: unverifiedUser.$id, email: unverifiedUser.email, password: "" },
-        });
-      } else if (!user && !unverifiedUser && !inAuthGroup) {
-        router.push({ pathname: "/sign-in" });
-      } else if (user && inAuthGroup) {
-        router.push("/(tabs)/home");
-      }
-    }, [user, unverifiedUser, segments, authInitialized, isNavigationReady]);
-  };
-
   useEffect(() => {
     (async () => {
       try {
         const fetchedUser = await account.get();
-        console.log(fetchedUser);
+        console.log("fetched user", fetchedUser);
         if (fetchedUser.emailVerification) {
           setAuth(fetchedUser);
         } else {
@@ -155,8 +123,6 @@ export function AuthProvider(props: ProviderProps) {
       return { error: error as Error, data: undefined };
     }
   };
-
-  useProtectedRoute(user);
 
   return (
     <AuthContext.Provider value={{ signIn: login, signOut: logout, signUp: createAcount, verifyEmail, resendVerification, user, unverifiedUser, authInitialized }}>
