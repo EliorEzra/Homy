@@ -9,7 +9,40 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedCard } from "@/components/themed-card";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { spacing } from "@/theme/theme";
-import { Home, X, Users } from "lucide-react-native";
+import { Home, X, Users, Heart, Coffee, Pencil } from "lucide-react-native";
+
+// ─── Preset role templates ────────────────────────────────────────────────────
+
+type Preset = { id: string; label: string; icon: React.ReactNode; roles: string[] };
+
+const PRESETS: Preset[] = [
+  {
+    id: 'family',
+    label: 'Family',
+    icon: <Heart size={16} color="white" />,
+    roles: ['Parent', 'Child', 'Grandparent', 'Guardian'],
+  },
+  {
+    id: 'roommates',
+    label: 'Roommates',
+    icon: <Coffee size={16} color="white" />,
+    roles: ['Roommate', 'Tenant', 'Landlord'],
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    icon: <Pencil size={16} color="white" />,
+    roles: [],
+  },
+];
+
+const PRESET_COLORS: Record<string, string> = {
+  family: '#ff5c02',
+  roommates: '#4d00ff',
+  custom: '#1fc16b',
+};
+
+// ─── Tag input ────────────────────────────────────────────────────────────────
 
 function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
   const [input, setInput] = useState('');
@@ -64,14 +97,24 @@ const tagStyles = StyleSheet.create({
   input: { fontSize: 14, paddingVertical: 4, minWidth: 120, flex: 1 },
 });
 
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export default function CreateHouse() {
   const { createHouse } = useHouse();
   const router = useRouter();
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
+  const borderColor = useThemeColor({}, 'inputBorder');
   const houseNameRef = useRef("");
-  const [roles, setRoles] = useState<string[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<string>('family');
+  const [roles, setRoles] = useState<string[]>(PRESETS[0].roles);
   const [loading, setLoading] = useState(false);
+
+  const handleSelectPreset = (preset: Preset) => {
+    setSelectedPreset(preset.id);
+    if (preset.id !== 'custom') setRoles(preset.roles);
+    else setRoles([]);
+  };
 
   return (
     <>
@@ -96,6 +139,8 @@ export default function CreateHouse() {
 
             {/* Form */}
             <ThemedCard variant="elevated" style={styles.card}>
+
+              {/* House Name */}
               <View style={styles.field}>
                 <View style={styles.fieldHeader}>
                   <Home size={16} color={primaryColor} />
@@ -110,16 +155,62 @@ export default function CreateHouse() {
                 />
               </View>
 
+              {/* Role Presets */}
               <View style={styles.field}>
                 <View style={styles.fieldHeader}>
                   <Users size={16} color={primaryColor} />
                   <ThemedText style={styles.label}>House Roles</ThemedText>
                 </View>
                 <ThemedText style={[styles.hint, { color: mutedColor }]}>
-                  Type a role and press Enter or add a comma to add it
+                  Choose a preset or create your own
                 </ThemedText>
-                <TagInput tags={roles} onChange={setRoles} />
+                <View style={styles.presetsRow}>
+                  {PRESETS.map(preset => {
+                    const isSelected = selectedPreset === preset.id;
+                    const color = PRESET_COLORS[preset.id];
+                    return (
+                      <Pressable
+                        key={preset.id}
+                        onPress={() => handleSelectPreset(preset)}
+                        style={[
+                          styles.presetCard,
+                          { borderColor: isSelected ? color : borderColor },
+                          isSelected && { backgroundColor: `${color}12` },
+                        ]}
+                      >
+                        <View style={[styles.presetIcon, { backgroundColor: isSelected ? color : `${color}40` }]}>
+                          {preset.icon}
+                        </View>
+                        <ThemedText style={[styles.presetLabel, isSelected && { color, fontWeight: '700' }]}>
+                          {preset.label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {/* Preset role chips (read-only preview for non-custom) */}
+                {selectedPreset !== 'custom' && (
+                  <View style={styles.presetRolesRow}>
+                    {roles.map(role => (
+                      <View key={role} style={[styles.presetRoleChip, { backgroundColor: `${PRESET_COLORS[selectedPreset]}15`, borderColor: `${PRESET_COLORS[selectedPreset]}40` }]}>
+                        <ThemedText style={[styles.presetRoleText, { color: PRESET_COLORS[selectedPreset] }]}>{role}</ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Custom tag input */}
+                {selectedPreset === 'custom' && (
+                  <>
+                    <ThemedText style={[styles.hint, { color: mutedColor, marginTop: spacing.xs }]}>
+                      Type a role and press Enter or use a comma
+                    </ThemedText>
+                    <TagInput tags={roles} onChange={setRoles} />
+                  </>
+                )}
               </View>
+
             </ThemedCard>
 
             <ThemedButton
@@ -163,5 +254,12 @@ const styles = StyleSheet.create({
   fieldHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   label: { fontWeight: '700', fontSize: 15 },
   hint: { fontSize: 12, marginBottom: spacing.xs },
+  presetsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  presetCard: { flex: 1, alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.md, borderRadius: 12, borderWidth: 1.5 },
+  presetIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  presetLabel: { fontSize: 13, fontWeight: '500' },
+  presetRolesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.xs },
+  presetRoleChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1 },
+  presetRoleText: { fontSize: 13, fontWeight: '600' },
   button: { marginTop: spacing.sm },
 });

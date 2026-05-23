@@ -8,19 +8,26 @@ import { useState } from 'react';
 import { Plus, DollarSign, Trash2, X } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/context/auth';
+import { useHouse } from '@/context/house';
 import { useExpenses } from '@/context/expenses_db';
 import { Models } from 'react-native-appwrite';
 
-const MEMBERS = ['Me', 'Alex', 'Jordan', 'Sam'];
-
 export default function FinancesScreen() {
   const { user } = useAuth();
+  const { members } = useHouse();
   const { expenses, addExpense, deleteExpense } = useExpenses();
+
+  // Build member label list: current user is always "Me", others use display name
+  const MEMBERS = members.length > 0
+    ? members.map(m => m.userId === user?.$id
+        ? 'Me'
+        : (m.userName || m.userEmail?.split('@')[0] || m.userId.slice(0, 6)))
+    : ['Me'];
   const [formVisible, setFormVisible] = useState(false);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState('Me');
-  const [splitWith, setSplitWith] = useState<string[]>(['Me', 'Alex']);
+  const [splitWith, setSplitWith] = useState<string[]>(['Me']);
   const [saving, setSaving] = useState(false);
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const borderColor = useThemeColor({}, 'inputBorder');
@@ -33,8 +40,8 @@ export default function FinancesScreen() {
   const totalSpent = expenseList.reduce((s, e) => s + (e.amount as number), 0);
   const myExpenses = expenseList.filter(e => (e.split_with as string).split(',').includes('Me'));
   const myShare = myExpenses.reduce((s, e) => {
-    const members = (e.split_with as string).split(',').filter(Boolean);
-    return s + (e.amount as number) / (members.length || 1);
+    const splitMembers = (e.split_with as string).split(',').filter(Boolean);
+    return s + (e.amount as number) / (splitMembers.length || 1);
   }, 0);
   const iPaid = expenseList.filter(e => e.paid_by === 'Me').reduce((s, e) => s + (e.amount as number), 0);
   const balance = iPaid - myShare;
@@ -52,7 +59,7 @@ export default function FinancesScreen() {
     });
     setSaving(false);
     if (error) { Alert.alert("Error", error.message); return; }
-    setTitle(''); setAmount(''); setPaidBy('Me'); setSplitWith(['Me', 'Alex']);
+    setTitle(''); setAmount(''); setPaidBy('Me'); setSplitWith(['Me']);
     setFormVisible(false);
   };
 
@@ -98,8 +105,8 @@ export default function FinancesScreen() {
           data={expenseList}
           keyExtractor={item => item.$id}
           renderItem={({ item }) => {
-            const members = (item.split_with as string).split(',').filter(Boolean);
-            const perPerson = ((item.amount as number) / (members.length || 1)).toFixed(2);
+            const splitMembers = (item.split_with as string).split(',').filter(Boolean);
+            const perPerson = ((item.amount as number) / (splitMembers.length || 1)).toFixed(2);
             return (
               <ThemedCard variant="outlined" style={styles.expenseCard}>
                 <View style={styles.expenseRow}>
@@ -112,7 +119,7 @@ export default function FinancesScreen() {
                       Paid by {item.paid_by as string} · {item.date as string}
                     </ThemedText>
                     <ThemedText style={[styles.expenseSplit, { color: mutedColor }]}>
-                      ${perPerson}/person · {members.join(', ')}
+                      ${perPerson}/person · {splitMembers.join(', ')}
                     </ThemedText>
                   </View>
                   <View style={styles.expenseRight}>

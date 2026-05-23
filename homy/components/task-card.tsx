@@ -9,6 +9,7 @@ import { Trash2, Edit, CheckCircle, Circle } from 'lucide-react-native';
 export type TaskCardProps = {
   id: string; title: string; description?: string; dueDate?: string;
   status?: "todo" | "in-progress" | "done"; completed?: boolean;
+  assignedTo?: string;
   onEdit?: () => void; onDelete?: () => void; onToggleComplete?: () => void;
   style?: StyleProp<ViewStyle>;
 }
@@ -19,7 +20,7 @@ const getStatusBadge = (status?: string) => {
   return <ThemedBadge label="To Do" variant="primary" size="sm" />;
 };
 
-export function TaskCard({ title, description, dueDate, status = "todo", completed = false, onEdit, onDelete, onToggleComplete, style }: TaskCardProps) {
+export function TaskCard({ title, description, dueDate, status = "todo", completed = false, assignedTo, onEdit, onDelete, onToggleComplete, style }: TaskCardProps) {
   const iconColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
   const textColor = useThemeColor({}, 'text');
@@ -35,6 +36,7 @@ export function TaskCard({ title, description, dueDate, status = "todo", complet
             <Text style={[styles.title, { color: textColor }, completed && styles.struck]} numberOfLines={1}>{title}</Text>
             {description ? <Text style={[styles.desc, { color: mutedColor }, completed && styles.struck]} numberOfLines={1}>{description}</Text> : null}
             {dueDate ? <Text style={[styles.due, { color: mutedColor }]}>Due: {(() => { const d = new Date(dueDate); return isNaN(d.getTime()) ? dueDate : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }); })()}</Text> : null}
+            {assignedTo ? <Text style={[styles.due, { color: mutedColor }]}>👤 {assignedTo}</Text> : null}
           </View>
         </Pressable>
         <View style={styles.right}>

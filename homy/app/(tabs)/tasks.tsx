@@ -10,6 +10,8 @@ import { useState } from 'react';
 import { Plus, CheckCircle } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useTasks } from '@/context/tasks_db';
+import { useHouse } from '@/context/house';
+import { useAuth } from '@/context/auth';
 import { Models } from 'react-native-appwrite';
 
 function rowToTask(row: Models.Row) {
@@ -20,6 +22,7 @@ function rowToTask(row: Models.Row) {
     dueDate: row.due_date ?? '',
     status: (row.status ?? 'todo') as "todo" | "in-progress" | "done",
     completed: row.completed ?? false,
+    assignedTo: row.assigned_to ?? '',
   };
 }
 
@@ -27,6 +30,8 @@ const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)
 
 export default function TasksScreen() {
   const { tasks, addTask, updateTask, deleteTask } = useTasks();
+  const { members } = useHouse();
+  const { user } = useAuth();
   const [formVisible, setFormVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
@@ -36,14 +41,21 @@ export default function TasksScreen() {
   const uiTasks = (tasks ?? []).map(rowToTask);
   const filtered = uiTasks.filter(t => filter === "active" ? !t.completed : filter === "completed" ? t.completed : true);
 
+  // Build display label for a member userId
+  const getMemberLabel = (userId: string) => {
+    if (userId === user?.$id) return 'Me';
+    const m = members.find(m => m.userId === userId);
+    return m ? (m.userName || m.userEmail?.split('@')[0] || userId.slice(0, 6)) : userId.slice(0, 6);
+  };
+
   const handleAdd = (data: TaskFormData) => {
-    addTask({ task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, completed: false }, []);
+    addTask({ task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, completed: false, assigned_to: data.assignedTo || undefined }, []);
     setFormVisible(false);
   };
 
   const handleEdit = (data: TaskFormData) => {
     if (!editingId) return;
-    updateTask(editingId, { task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status });
+    updateTask(editingId, { task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, assigned_to: data.assignedTo || undefined });
     setEditingId(null); setFormVisible(false);
   };
 
@@ -77,6 +89,7 @@ export default function TasksScreen() {
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <TaskCard {...item}
+              assignedTo={item.assignedTo ? getMemberLabel(item.assignedTo) : undefined}
               onEdit={() => { setEditingId(item.id); setFormVisible(true); }}
               onDelete={() => deleteTask(item.id)}
               onToggleComplete={() => updateTask(item.id, { completed: !item.completed })}
@@ -96,7 +109,8 @@ export default function TasksScreen() {
         key={editingId ?? 'new'}
         visible={formVisible}
         isEditing={!!editingId}
-        initialData={editingTask ? { title: editingTask.title, description: editingTask.description, dueDate: editingTask.dueDate, status: editingTask.status } : undefined}
+        members={members}
+        initialData={editingTask ? { title: editingTask.title, description: editingTask.description, dueDate: editingTask.dueDate, status: editingTask.status, assignedTo: editingTask.assignedTo || '' } : undefined}
         onSubmit={editingId ? handleEdit : handleAdd}
         onClose={() => { setFormVisible(false); setEditingId(null); }}
       />

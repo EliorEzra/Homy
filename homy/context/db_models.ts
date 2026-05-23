@@ -12,6 +12,7 @@ export type Task = {
     due_date?: string;
     status?: "todo" | "in-progress" | "done";
     completed?: boolean;
+    assigned_to?: string;
     userId?: string;
 }
 
