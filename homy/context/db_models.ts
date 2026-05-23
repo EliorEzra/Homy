@@ -23,6 +23,7 @@ export type CalEvent = {
     date?: string;
     time?: string;
     description?: string;
+    assigned_to?: string; // comma-separated userIds, empty = everyone
     userId?: string;
     team_id?: string;
 }

@@ -62,6 +62,7 @@ export function EventsProvider(props: ProviderProps) {
           date: data.date ?? "",
           time: data.time ?? "",
           description: data.description ?? "",
+          assigned_to: data.assigned_to ?? "",
           userId: user.$id,
           team_id: houseTeamId ?? "",
         },
@@ -71,7 +72,7 @@ export function EventsProvider(props: ProviderProps) {
           ...permissions,
         ],
       });
-      setEvents(prev => [...(prev ?? []), { $id: rowId, title: data.title, date: data.date ?? "", time: data.time ?? "", description: data.description ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
+      setEvents(prev => [...(prev ?? []), { $id: rowId, title: data.title, date: data.date ?? "", time: data.time ?? "", description: data.description ?? "", assigned_to: data.assigned_to ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };

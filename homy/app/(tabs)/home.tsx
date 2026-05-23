@@ -48,7 +48,12 @@ export default function HomeScreen() {
     return isOwner || assignedTo.length === 0 || assignedTo.includes(user?.$id ?? '');
   });
 
-  const eventsToday = (events ?? []).filter(e => e.date === todayStr);
+  const eventsToday = (events ?? []).filter(e => {
+    if (e.date !== todayStr) return false;
+    if (isOwner) return true;
+    const a = e.assigned_to ? (e.assigned_to as string).split(',').filter(Boolean) : [];
+    return a.length === 0 || a.includes(user?.$id ?? '');
+  });
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
 
