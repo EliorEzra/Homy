@@ -10,11 +10,12 @@ import { useHouse } from '@/context/house';
 import { spacing } from '@/theme/theme';
 import { useColorScheme } from 'react-native';
 import { useState } from 'react';
-import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X, Mail, Copy, Check } from 'lucide-react-native';
+import { Models } from 'react-native-appwrite';
+import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X, Mail, Copy, Check, Pencil, RefreshCw, UserMinus } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
-  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members } = useHouse();
+  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members, changeUserRoles, removeMember, refreshMembers, houseRoles } = useHouse();
   const colorScheme = useColorScheme();
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
@@ -25,6 +26,10 @@ export default function SettingsScreen() {
 
   const [inviteVisible, setInviteVisible] = useState(false);
   const [inviteTab, setInviteTab] = useState<'email' | 'code'>('email');
+  const [roleEditMember, setRoleEditMember] = useState<Models.Membership | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [savingRole, setSavingRole] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -67,6 +72,50 @@ export default function SettingsScreen() {
       setInviteEmail('');
       setInviteVisible(false);
       Alert.alert('Invite Sent', `An invitation has been sent to ${email}.`);
+    }
+  };
+
+  const handleRefreshMembers = async () => {
+    setRefreshing(true);
+    await refreshMembers();
+    setRefreshing(false);
+  };
+
+  const handleRemoveMember = (member: Models.Membership) => {
+    const name = member.userName || member.userEmail?.split('@')[0] || 'this member';
+    Alert.alert(
+      'Remove Member',
+      `Remove ${name} from the household? They will lose access to all shared data.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await removeMember(member.$id);
+            if (error) Alert.alert('Error', error.message);
+          },
+        },
+      ]
+    );
+  };
+
+  const openRoleEdit = (member: Models.Membership) => {
+    const currentRole = (member.roles ?? []).filter((r: string) => r !== 'owner')[0] ?? '';
+    setSelectedRole(currentRole);
+    setRoleEditMember(member);
+  };
+
+  const handleSaveRole = async () => {
+    if (!roleEditMember) return;
+    setSavingRole(true);
+    const newRoles = selectedRole ? [selectedRole] : [];
+    const { error } = await changeUserRoles(roleEditMember.$id, newRoles);
+    setSavingRole(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      setRoleEditMember(null);
     }
   };
 
@@ -159,6 +208,9 @@ export default function SettingsScreen() {
             <View style={[styles.memberCount, { backgroundColor: `${primaryColor}20` }]}>
               <ThemedText style={[styles.memberCountText, { color: primaryColor }]}>{members.length}</ThemedText>
             </View>
+            <Pressable onPress={handleRefreshMembers} disabled={refreshing} style={[styles.iconBtn, { backgroundColor: `${primaryColor}20` }]}>
+              <RefreshCw size={14} color={primaryColor} style={refreshing ? { opacity: 0.4 } : undefined} />
+            </Pressable>
             {isOwner && (
               <Pressable onPress={() => setInviteVisible(true)} style={[styles.inviteBtn, { backgroundColor: `${primaryColor}20` }]}>
                 <UserPlus size={14} color={primaryColor} />
@@ -188,6 +240,8 @@ export default function SettingsScreen() {
               : (member.userEmail || '');
             const memberInitials = name.slice(0, 2).toUpperCase();
 
+            const customRoles = (member.roles ?? []).filter((r: string) => r !== 'owner');
+
             return (
               <View
                 key={member.$id}
@@ -205,12 +259,30 @@ export default function SettingsScreen() {
                     {memberIsOwner && <Crown size={13} color={primaryColor} />}
                   </View>
                   {!!email && <ThemedText style={[styles.memberEmail, { color: mutedColor }]}>{email}</ThemedText>}
-                  {member.roles && member.roles.filter((r: string) => r !== 'owner').length > 0 && (
-                    <ThemedText style={[styles.memberRoles, { color: mutedColor }]}>
-                      {member.roles.filter((r: string) => r !== 'owner').join(', ')}
-                    </ThemedText>
+                  {memberIsOwner ? (
+                    <ThemedText style={[styles.memberRoleChipText, { color: primaryColor }]}>Owner</ThemedText>
+                  ) : customRoles.length > 0 ? (
+                    <View style={styles.memberRoleChipRow}>
+                      {customRoles.map((r: string) => (
+                        <View key={r} style={[styles.memberRoleChip, { backgroundColor: `${primaryColor}15`, borderColor: `${primaryColor}40` }]}>
+                          <ThemedText style={[styles.memberRoleChipText, { color: primaryColor }]}>{r}</ThemedText>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <ThemedText style={[styles.memberEmail, { color: mutedColor }]}>No role assigned</ThemedText>
                   )}
                 </View>
+                {isOwner && !memberIsOwner && (
+                  <View style={styles.memberActions}>
+                    <Pressable onPress={() => openRoleEdit(member)} hitSlop={8} style={[styles.iconBtn, { backgroundColor: `${primaryColor}15` }]}>
+                      <Pencil size={14} color={primaryColor} />
+                    </Pressable>
+                    <Pressable onPress={() => handleRemoveMember(member)} hitSlop={8} style={[styles.iconBtn, { backgroundColor: '#ff374815' }]}>
+                      <UserMinus size={14} color="#ff3748" />
+                    </Pressable>
+                  </View>
+                )}
               </View>
             );
           })}
@@ -269,6 +341,84 @@ export default function SettingsScreen() {
         </ThemedCard>
 
       </ScrollView>
+
+      {/* Role Edit Modal */}
+      <Modal
+        visible={!!roleEditMember}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setRoleEditMember(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <ThemedView style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="subtitle">Assign Role</ThemedText>
+              <Pressable onPress={() => setRoleEditMember(null)} hitSlop={8}>
+                <X size={24} color={primaryColor} />
+              </Pressable>
+            </View>
+            <View style={styles.modalBody}>
+              <ThemedText style={[styles.modalHint, { color: mutedColor }]}>
+                {roleEditMember ? (() => {
+                  const isMe2 = roleEditMember.userId === user?.$id;
+                  return isMe2 ? 'Your role' : (roleEditMember.userName || roleEditMember.userEmail?.split('@')[0] || 'This member');
+                })() : ''}
+              </ThemedText>
+
+              {houseRoles.length === 0 ? (
+                <ThemedText style={[styles.modalHint, { color: mutedColor }]}>
+                  This house has no defined roles. You can still remove any existing role.
+                </ThemedText>
+              ) : (
+                <View style={styles.roleChipsWrap}>
+                  {/* "No role" chip */}
+                  <Pressable
+                    onPress={() => setSelectedRole('')}
+                    style={[
+                      styles.roleChip,
+                      { borderColor },
+                      selectedRole === '' && { backgroundColor: `${primaryColor}20`, borderColor: primaryColor },
+                    ]}
+                  >
+                    <ThemedText style={[styles.roleChipText, selectedRole === '' && { color: primaryColor, fontWeight: '700' }]}>
+                      No role
+                    </ThemedText>
+                  </Pressable>
+                  {houseRoles.map((r: string) => (
+                    <Pressable
+                      key={r}
+                      onPress={() => setSelectedRole(r)}
+                      style={[
+                        styles.roleChip,
+                        { borderColor },
+                        selectedRole === r && { backgroundColor: `${primaryColor}20`, borderColor: primaryColor },
+                      ]}
+                    >
+                      <ThemedText style={[styles.roleChipText, selectedRole === r && { color: primaryColor, fontWeight: '700' }]}>
+                        {r}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+            <View style={styles.modalFooter}>
+              <Pressable onPress={() => setRoleEditMember(null)} style={[styles.footerBtn, { borderColor }]}>
+                <ThemedText style={styles.footerBtnText}>Cancel</ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveRole}
+                disabled={savingRole}
+                style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor, opacity: savingRole ? 0.6 : 1 }]}
+              >
+                <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>
+                  {savingRole ? 'Saving…' : 'Save'}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </ThemedView>
+        </View>
+      </Modal>
 
       {/* Invite Member Modal */}
       <Modal
@@ -410,7 +560,14 @@ const styles = StyleSheet.create({
   memberNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: 2 },
   memberName: { fontWeight: '600', fontSize: 14 },
   memberEmail: { fontSize: 12, marginBottom: 1 },
-  memberRoles: { fontSize: 11 },
+  memberRoleChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
+  memberRoleChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, borderWidth: 1 },
+  memberRoleChipText: { fontSize: 11, fontWeight: '600' },
+  memberActions: { flexDirection: 'row', gap: spacing.xs },
+  iconBtn: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  roleChipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+  roleChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 20, borderWidth: 1 },
+  roleChipText: { fontSize: 14, fontWeight: '500' },
   emptyMembers: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
   emptyMembersText: { fontSize: 14 },
   divider: { marginHorizontal: spacing.lg, marginTop: spacing.lg },

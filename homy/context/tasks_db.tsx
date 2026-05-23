@@ -75,6 +75,7 @@ export function TasksProvider(props: ProviderProps) {
           due_date: data.due_date ?? "",
           status: data.status ?? "todo",
           completed: data.completed ?? false,
+          assigned_to: data.assigned_to ?? "",
           userId: user.$id,
           team_id: houseTeamId ?? "",
         },
@@ -84,7 +85,7 @@ export function TasksProvider(props: ProviderProps) {
           ...permissions,
         ],
       });
-      setTasks(prev => [...(prev ?? []), { $id: rowId, task_text: data.task_text, description: data.description ?? "", due_date: data.due_date ?? "", status: data.status ?? "todo", completed: data.completed ?? false, userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
+      setTasks(prev => [...(prev ?? []), { $id: rowId, task_text: data.task_text, description: data.description ?? "", due_date: data.due_date ?? "", status: data.status ?? "todo", completed: data.completed ?? false, assigned_to: data.assigned_to ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };

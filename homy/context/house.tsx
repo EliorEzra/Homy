@@ -45,11 +45,18 @@ interface JoinHouseByCodeResponse {
   error: any | undefined;
 }
 
+interface RemoveMemberResponse {
+  data: {} | undefined;
+  error: any | undefined;
+}
+
 interface HouseContextValue {
   createHouse: (name: string, roles?: string[]) => Promise<CreateHouseResponse>;
   addUser: (email: string, roles?: string[]) => Promise<AddUserResponse>;
   getUsers: () => Promise<GetHouseUsersResponse>;
   changeUserRoles: (memberId: string, roles: string[]) => Promise<ChangeUserRolesResponse>;
+  removeMember: (memberId: string) => Promise<RemoveMemberResponse>;
+  refreshMembers: () => Promise<void>;
   acceptHouseInvite: (teamId: string, membershipId: string, secret: string) => Promise<AcceptHouseInviteResponse>;
   leaveHouse: () => Promise<LeaveHouseResponse>;
   deleteHouse: () => Promise<DeleteHouseResponse>;
@@ -57,6 +64,7 @@ interface HouseContextValue {
   house: Models.Membership | null;
   houseTeamId: string | null;
   members: Models.Membership[];
+  houseRoles: string[];
 }
 
 interface ProviderProps {
@@ -73,6 +81,7 @@ export function HouseProvider(props: ProviderProps) {
     const [houseTeamId, setHouseTeamId] = useState<string | null>(null);
     const [houseInitialized, setHouseInitialized] = useState<boolean>(false);
     const [members, setMembers] = useState<Models.Membership[]>([]);
+    const [houseRoles, setHouseRoles] = useState<string[]>([]);
 
     const {user} = useAuth()
 
@@ -117,6 +126,7 @@ export function HouseProvider(props: ProviderProps) {
             });
             setHouse(houseMembers.memberships[0]);
             setHouseTeamId(houseTeam.$id);
+            setHouseRoles((houseTeam.prefs as any)?.roles ?? []);
             const allMembers = await team.listMemberships({ teamId: houseTeam.$id });
             setMembers(allMembers.memberships);
         }
@@ -126,7 +136,13 @@ export function HouseProvider(props: ProviderProps) {
         try {
             if (user === null) throw new Error("Log in before creating a new house");
             if (house != null) throw new Error("Cannot create new house while a member of existing house");
-            const response = await team.create({ teamId: ID.unique(), name, roles });
+            // Don't pass roles to team.create — that sets the creator's membership roles,
+            // not "available roles". We store the house role list in team prefs instead.
+            const response = await team.create({ teamId: ID.unique(), name });
+            // Persist the defined roles in the team's prefs so any device can read them later
+            if (roles && roles.length > 0) {
+                await team.updatePrefs({ teamId: response.$id, prefs: { roles } });
+            }
             const memberships = await team.listMemberships({
                 teamId: response.$id,
                 queries: [Query.equal('userId', user.$id)],
@@ -135,6 +151,7 @@ export function HouseProvider(props: ProviderProps) {
             if (memberships.total != 1) throw new Error("Created team but user is not part of it");
             setHouse(memberships.memberships[0]);
             setHouseTeamId(response.$id);
+            setHouseRoles(roles ?? []);
             setMembers(memberships.memberships);
             return { data: response, error: undefined };
         } catch (error) {
@@ -170,11 +187,32 @@ export function HouseProvider(props: ProviderProps) {
     async function changeUserRoles(memberId: string, roles: string[]): Promise<ChangeUserRolesResponse> {
         try {
             if (!houseTeamId) throw new Error("Cannot change a user's roles while not in a house");
-            await team.updateMembership({ teamId: houseTeamId, membershipId: memberId, roles });
+            const updated = await team.updateMembership({ teamId: houseTeamId, membershipId: memberId, roles });
+            // Reflect the change immediately in local state without a full re-fetch
+            setMembers(prev => prev.map(m => m.$id === memberId ? { ...m, roles: updated.roles } : m));
             return { data: {}, error: undefined };
         } catch (error) {
             return { data: undefined, error: error as Error };
         }
+    }
+
+    async function removeMember(memberId: string): Promise<RemoveMemberResponse> {
+        try {
+            if (!houseTeamId) throw new Error("Not in a house");
+            await team.deleteMembership({ teamId: houseTeamId, membershipId: memberId });
+            setMembers(prev => prev.filter(m => m.$id !== memberId));
+            return { data: {}, error: undefined };
+        } catch (error) {
+            return { data: undefined, error: error as Error };
+        }
+    }
+
+    async function refreshMembers(): Promise<void> {
+        if (!houseTeamId) return;
+        try {
+            const allMembers = await team.listMemberships({ teamId: houseTeamId });
+            setMembers(allMembers.memberships);
+        } catch (_) {}
     }
 
     async function acceptHouseInvite(teamId: string, membershipId: string, secret: string): Promise<AcceptHouseInviteResponse> {
@@ -199,7 +237,7 @@ export function HouseProvider(props: ProviderProps) {
         try {
             if (!house || !houseTeamId) throw new Error("Cannot leave house while not part of a house");
             await team.deleteMembership({ teamId: houseTeamId, membershipId: house.$id });
-            setHouse(null); setHouseTeamId(null); setMembers([]);
+            setHouse(null); setHouseTeamId(null); setMembers([]); setHouseRoles([]);
             return { data: {}, error: undefined };
         } catch (error) {
             return { data: undefined, error: error as Error };
@@ -233,7 +271,7 @@ export function HouseProvider(props: ProviderProps) {
             }));
 
             await team.delete({ teamId: houseTeamId });
-            setHouse(null); setHouseTeamId(null); setMembers([]);
+            setHouse(null); setHouseTeamId(null); setMembers([]); setHouseRoles([]);
             return { data: {}, error: undefined };
         } catch (error) {
             return { data: undefined, error: error as Error };
@@ -301,10 +339,11 @@ export function HouseProvider(props: ProviderProps) {
                 });
                 setHouse(houseMembers.memberships[0]);
                 setHouseTeamId(houseTeam.$id);
+                setHouseRoles((houseTeam.prefs as any)?.roles ?? []);
                 const allMembers = await team.listMemberships({ teamId: houseTeam.$id });
                 setMembers(allMembers.memberships);
             } else {
-                setHouse(null); setHouseTeamId(null); setMembers([]);
+                setHouse(null); setHouseTeamId(null); setMembers([]); setHouseRoles([]);
             }
           } catch (error) {
             console.log("error", error);
@@ -322,6 +361,8 @@ export function HouseProvider(props: ProviderProps) {
             addUser,
             getUsers,
             changeUserRoles,
+            removeMember,
+            refreshMembers,
             acceptHouseInvite,
             leaveHouse,
             deleteHouse,
@@ -329,6 +370,7 @@ export function HouseProvider(props: ProviderProps) {
             house,
             houseTeamId,
             members,
+            houseRoles,
         }}>
             {props.children}
         </HouseContext.Provider>
