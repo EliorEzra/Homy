@@ -22,7 +22,10 @@ function rowToTask(row: Models.Row) {
     dueDate: row.due_date ?? '',
     status: (row.status ?? 'todo') as "todo" | "in-progress" | "done",
     completed: row.completed ?? false,
-    assignedTo: row.assigned_to ?? '',
+    // stored as comma-separated userIds, expose as string[]
+    assignedTo: row.assigned_to
+      ? (row.assigned_to as string).split(',').filter(Boolean)
+      : [] as string[],
   };
 }
 
@@ -30,7 +33,7 @@ const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)
 
 export default function TasksScreen() {
   const { tasks, addTask, updateTask, deleteTask } = useTasks();
-  const { members } = useHouse();
+  const { members, house } = useHouse();
   const { user } = useAuth();
   const [formVisible, setFormVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -38,24 +41,36 @@ export default function TasksScreen() {
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const borderColor = useThemeColor({}, 'inputBorder');
 
-  const uiTasks = (tasks ?? []).map(rowToTask);
+  const isOwner = house?.roles?.includes('owner') ?? false;
+
+  const uiTasks = (tasks ?? [])
+    .map(rowToTask)
+    // Members only see tasks assigned to them or to nobody; owners see everything
+    .filter(t => isOwner || t.assignedTo.length === 0 || t.assignedTo.includes(user?.$id ?? ''));
+
   const filtered = uiTasks.filter(t => filter === "active" ? !t.completed : filter === "completed" ? t.completed : true);
 
-  // Build display label for a member userId
+  // Build display label for a single userId
   const getMemberLabel = (userId: string) => {
     if (userId === user?.$id) return 'Me';
     const m = members.find(m => m.userId === userId);
     return m ? (m.userName || m.userEmail?.split('@')[0] || userId.slice(0, 6)) : userId.slice(0, 6);
   };
 
+  // Build a comma-joined display string for an array of userIds
+  const getAssigneesLabel = (userIds: string[]) =>
+    userIds.length === 0 ? undefined : userIds.map(getMemberLabel).join(', ');
+
   const handleAdd = (data: TaskFormData) => {
-    addTask({ task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, completed: false, assigned_to: data.assignedTo || undefined }, []);
+    const assigned = data.assignedTo.length > 0 ? data.assignedTo.join(',') : undefined;
+    addTask({ task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, completed: false, assigned_to: assigned }, []);
     setFormVisible(false);
   };
 
   const handleEdit = (data: TaskFormData) => {
     if (!editingId) return;
-    updateTask(editingId, { task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, assigned_to: data.assignedTo || undefined });
+    const assigned = data.assignedTo.length > 0 ? data.assignedTo.join(',') : undefined;
+    updateTask(editingId, { task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, assigned_to: assigned });
     setEditingId(null); setFormVisible(false);
   };
 
@@ -89,7 +104,7 @@ export default function TasksScreen() {
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
             <TaskCard {...item}
-              assignedTo={item.assignedTo ? getMemberLabel(item.assignedTo) : undefined}
+              assignedTo={getAssigneesLabel(item.assignedTo)}
               onEdit={() => { setEditingId(item.id); setFormVisible(true); }}
               onDelete={() => deleteTask(item.id)}
               onToggleComplete={() => updateTask(item.id, { completed: !item.completed })}
@@ -110,7 +125,7 @@ export default function TasksScreen() {
         visible={formVisible}
         isEditing={!!editingId}
         members={members}
-        initialData={editingTask ? { title: editingTask.title, description: editingTask.description, dueDate: editingTask.dueDate, status: editingTask.status, assignedTo: editingTask.assignedTo || '' } : undefined}
+        initialData={editingTask ? { title: editingTask.title, description: editingTask.description, dueDate: editingTask.dueDate, status: editingTask.status, assignedTo: editingTask.assignedTo } : undefined}
         onSubmit={editingId ? handleEdit : handleAdd}
         onClose={() => { setFormVisible(false); setEditingId(null); }}
       />

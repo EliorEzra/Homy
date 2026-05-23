@@ -4,6 +4,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '../../context/auth';
+import { useHouse } from '@/context/house';
 import { useTasks } from '@/context/tasks_db';
 import { useEvents } from '@/context/events_db';
 import { spacing } from '@/theme/theme';
@@ -25,8 +26,10 @@ function QuickCard({ label, icon, color, onPress }: { label: string; icon: React
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const { house } = useHouse();
   const { tasks } = useTasks();
   const { events } = useEvents();
+  const isOwner = house?.roles?.includes('owner') ?? false;
   const router = useRouter();
 
   const todayStr = (() => {
@@ -39,7 +42,10 @@ export default function HomeScreen() {
     const d = new Date(t.due_date as string);
     if (isNaN(d.getTime())) return false;
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return ds === todayStr;
+    if (ds !== todayStr) return false;
+    // Apply the same visibility rule as the Tasks tab
+    const assignedTo = t.assigned_to ? (t.assigned_to as string).split(',').filter(Boolean) : [];
+    return isOwner || assignedTo.length === 0 || assignedTo.includes(user?.$id ?? '');
   });
 
   const eventsToday = (events ?? []).filter(e => e.date === todayStr);

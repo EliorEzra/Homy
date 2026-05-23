@@ -14,7 +14,7 @@ import { X, Calendar, Clock, User } from 'lucide-react-native';
 export type TaskFormData = {
   title: string; description: string; dueDate: string;
   status: "todo" | "in-progress" | "done";
-  assignedTo: string;
+  assignedTo: string[]; // array of userIds
 }
 
 export type TaskFormProps = {
@@ -48,7 +48,7 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
     initialData?.dueDate ? parseDueDate(initialData.dueDate) : null
   );
   const [status, setStatus] = useState<"todo" | "in-progress" | "done">(initialData?.status || "todo");
-  const [assignedTo, setAssignedTo] = useState(initialData?.assignedTo || "");
+  const [assignedTo, setAssignedTo] = useState<string[]>(initialData?.assignedTo || []);
   const [errors, setErrors] = useState<{ title?: string }>({});
 
   // Android shows date and time pickers separately
@@ -64,7 +64,7 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
 
   const reset = () => {
     setTitle(""); setDescription(""); setDueDate(null);
-    setStatus("todo"); setAssignedTo(""); setErrors({});
+    setStatus("todo"); setAssignedTo([]); setErrors({});
     setShowDatePicker(false); setShowTimePicker(false); setShowIOSPicker(false);
   };
   const handleClose = () => { reset(); onClose(); };
@@ -76,7 +76,7 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
       description: description.trim(),
       dueDate: dueDate ? dueDate.toISOString() : "",
       status,
-      assignedTo,
+      assignedTo, // string[]
     });
     reset();
   };
@@ -213,20 +213,24 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
                   </View>
                   <View style={styles.assignRow}>
                     <Pressable
-                      onPress={() => setAssignedTo("")}
-                      style={[styles.assignChip, { borderColor }, assignedTo === "" && { backgroundColor: primaryColor, borderColor: primaryColor }]}
+                      onPress={() => setAssignedTo([])}
+                      style={[styles.assignChip, { borderColor }, assignedTo.length === 0 && { backgroundColor: primaryColor, borderColor: primaryColor }]}
                     >
-                      <ThemedText style={[styles.assignChipText, assignedTo === "" && { color: 'white' }]}>Anyone</ThemedText>
+                      <ThemedText style={[styles.assignChipText, assignedTo.length === 0 && { color: 'white' }]}>Anyone</ThemedText>
                     </Pressable>
                     {members.map(m => {
                       const label = m.userId === user?.$id
                         ? 'Me'
                         : (m.userName || m.userEmail?.split('@')[0] || m.userId.slice(0, 6));
-                      const isSelected = assignedTo === m.userId;
+                      const isSelected = assignedTo.includes(m.userId);
                       return (
                         <Pressable
                           key={m.userId}
-                          onPress={() => setAssignedTo(m.userId)}
+                          onPress={() => setAssignedTo(prev =>
+                            prev.includes(m.userId)
+                              ? prev.filter(id => id !== m.userId)
+                              : [...prev, m.userId]
+                          )}
                           style={[styles.assignChip, { borderColor }, isSelected && { backgroundColor: primaryColor, borderColor: primaryColor }]}
                         >
                           <ThemedText style={[styles.assignChipText, isSelected && { color: 'white' }]}>{label}</ThemedText>
