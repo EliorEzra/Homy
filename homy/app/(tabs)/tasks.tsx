@@ -12,6 +12,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useTasks } from '@/context/tasks_db';
 import { useHouse } from '@/context/house';
 import { useAuth } from '@/context/auth';
+import { usePermissions } from '@/hooks/use-permissions';
 import { Models } from 'react-native-appwrite';
 
 function rowToTask(row: Models.Row) {
@@ -22,6 +23,7 @@ function rowToTask(row: Models.Row) {
     dueDate: row.due_date ?? '',
     status: (row.status ?? 'todo') as "todo" | "in-progress" | "done",
     completed: row.completed ?? false,
+    userId: (row.userId as string) ?? '',
     // stored as comma-separated userIds, expose as string[]
     assignedTo: row.assigned_to
       ? (row.assigned_to as string).split(',').filter(Boolean)
@@ -42,6 +44,7 @@ export default function TasksScreen() {
   const borderColor = useThemeColor({}, 'inputBorder');
 
   const isOwner = house?.roles?.includes('owner') ?? false;
+  const { canCreate, canEdit, canDelete } = usePermissions();
 
   const uiTasks = (tasks ?? [])
     .map(rowToTask)
@@ -96,7 +99,7 @@ export default function TasksScreen() {
           title={filter === "all" ? "No Tasks Yet" : filter === "active" ? "All Tasks Complete" : "No Completed Tasks"}
           description={filter === "all" ? "Create your first task to get started" : "Keep up the great work!"}
           icon={<CheckCircle size={64} color="#ff5c02" opacity={0.5} />}
-          action={filter === "all" ? <ThemedButton title="+ Create Task" onPress={() => { setEditingId(null); setFormVisible(true); }} size="md" /> : undefined}
+          action={filter === "all" && canCreate('tasks') ? <ThemedButton title="+ Create Task" onPress={() => { setEditingId(null); setFormVisible(true); }} size="md" /> : undefined}
         />
       ) : (
         <FlatList
@@ -105,9 +108,9 @@ export default function TasksScreen() {
           renderItem={({ item }) => (
             <TaskCard {...item}
               assignedTo={getAssigneesLabel(item.assignedTo)}
-              onEdit={() => { setEditingId(item.id); setFormVisible(true); }}
-              onDelete={() => deleteTask(item.id)}
-              onToggleComplete={() => updateTask(item.id, { completed: !item.completed })}
+              onEdit={canEdit('tasks', item.userId) ? () => { setEditingId(item.id); setFormVisible(true); } : undefined}
+              onDelete={canDelete('tasks', item.userId) ? () => deleteTask(item.id) : undefined}
+              onToggleComplete={canEdit('tasks', item.userId) ? () => updateTask(item.id, { completed: !item.completed }) : undefined}
               style={styles.taskCard}
             />
           )}
@@ -116,9 +119,11 @@ export default function TasksScreen() {
         />
       )}
 
-      <Pressable style={[styles.fab, { backgroundColor: primaryColor }]} onPress={() => { setEditingId(null); setFormVisible(true); }}>
-        <Plus size={28} color="white" strokeWidth={3} />
-      </Pressable>
+      {canCreate('tasks') && (
+        <Pressable style={[styles.fab, { backgroundColor: primaryColor }]} onPress={() => { setEditingId(null); setFormVisible(true); }}>
+          <Plus size={28} color="white" strokeWidth={3} />
+        </Pressable>
+      )}
 
       <TaskForm
         key={editingId ?? 'new'}

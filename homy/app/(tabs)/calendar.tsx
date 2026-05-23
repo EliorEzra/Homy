@@ -9,6 +9,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useEvents } from '@/context/events_db';
 import { useHouse } from '@/context/house';
 import { useAuth } from '@/context/auth';
+import { usePermissions } from '@/hooks/use-permissions';
 import { Models } from 'react-native-appwrite';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
@@ -53,6 +54,7 @@ export default function CalendarScreen() {
   const textColor = useThemeColor({}, 'text');
 
   const isOwner = house?.roles?.includes('owner') ?? false;
+  const { canCreate, canDelete } = usePermissions();
   const todayStr = toDateStr(now.getFullYear(), now.getMonth(), now.getDate());
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -176,10 +178,12 @@ export default function CalendarScreen() {
             <ThemedText style={styles.eventsTitle}>
               {selectedDate === todayStr ? "Today's Events" : selectedDate}
             </ThemedText>
-            <Pressable onPress={() => setFormVisible(true)} style={[styles.addEventBtn, { backgroundColor: primaryColor }]}>
-              <Plus size={16} color="white" strokeWidth={3} />
-              <ThemedText style={styles.addEventText}>Add</ThemedText>
-            </Pressable>
+            {canCreate('calendar') && (
+              <Pressable onPress={() => setFormVisible(true)} style={[styles.addEventBtn, { backgroundColor: primaryColor }]}>
+                <Plus size={16} color="white" strokeWidth={3} />
+                <ThemedText style={styles.addEventText}>Add</ThemedText>
+              </Pressable>
+            )}
           </View>
 
           {selectedEvents.length === 0 ? (
@@ -202,9 +206,11 @@ export default function CalendarScreen() {
                   <ThemedText style={[styles.eventAttendees, { color: mutedColor }]}>{getAttendeesLabel(event)}</ThemedText>
                 </View>
               </View>
-              <Pressable onPress={() => deleteEvent(event.$id)} hitSlop={8} style={styles.deleteBtn}>
-                <Trash2 size={16} color="#ff3748" />
-              </Pressable>
+              {canDelete('calendar', event.userId as string) && (
+                <Pressable onPress={() => deleteEvent(event.$id)} hitSlop={8} style={styles.deleteBtn}>
+                  <Trash2 size={16} color="#ff3748" />
+                </Pressable>
+              )}
             </ThemedCard>
           ))}
         </View>

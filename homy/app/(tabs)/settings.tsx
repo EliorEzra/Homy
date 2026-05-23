@@ -11,11 +11,12 @@ import { spacing } from '@/theme/theme';
 import { useColorScheme } from 'react-native';
 import { useState } from 'react';
 import { Models } from 'react-native-appwrite';
-import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X, Mail, Copy, Check, Pencil, RefreshCw, UserMinus } from 'lucide-react-native';
+import { RolePermissions, DEFAULT_ROLE_PERMISSIONS, DEFAULT_TAB_PERMISSION, TabPermission } from '@/context/db_models';
+import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X, Mail, Copy, Check, Pencil, RefreshCw, UserMinus, ShieldCheck, ChevronUp, ChevronDown } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
-  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members, changeUserRoles, removeMember, refreshMembers, houseRoles } = useHouse();
+  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members, changeUserRoles, removeMember, refreshMembers, houseRoles, roleOrder, rolePermissions, updateRolePermissions, updateRoleOrder } = useHouse();
   const colorScheme = useColorScheme();
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
@@ -33,6 +34,11 @@ export default function SettingsScreen() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+
+  // Role permissions editor state
+  const [permEditRole, setPermEditRole] = useState<string | null>(null);
+  const [editingPerms, setEditingPerms] = useState<RolePermissions>(DEFAULT_ROLE_PERMISSIONS);
+  const [savingPerms, setSavingPerms] = useState(false);
 
   // Format teamId as readable groups: e.g. ABCDE-FGHIJ-KLMNO-PQRST
   const houseCode = houseTeamId
@@ -117,6 +123,44 @@ export default function SettingsScreen() {
     } else {
       setRoleEditMember(null);
     }
+  };
+
+  const openPermEdit = (role: string) => {
+    const current: RolePermissions = rolePermissions[role] ?? DEFAULT_ROLE_PERMISSIONS;
+    setEditingPerms(current);
+    setPermEditRole(role);
+  };
+
+  const togglePerm = (tab: keyof RolePermissions, key: keyof TabPermission) => {
+    setEditingPerms(prev => ({
+      ...prev,
+      [tab]: { ...prev[tab], [key]: !prev[tab][key] },
+    }));
+  };
+
+  const handleSavePerms = async () => {
+    if (!permEditRole) return;
+    setSavingPerms(true);
+    const { error } = await updateRolePermissions(permEditRole, editingPerms);
+    setSavingPerms(false);
+    if (error) Alert.alert('Error', error.message);
+    else setPermEditRole(null);
+  };
+
+  const moveRoleUp = async (index: number) => {
+    if (index === 0) return;
+    const newOrder = [...roleOrder];
+    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+    const { error } = await updateRoleOrder(newOrder);
+    if (error) Alert.alert('Error', error.message);
+  };
+
+  const moveRoleDown = async (index: number) => {
+    if (index === roleOrder.length - 1) return;
+    const newOrder = [...roleOrder];
+    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+    const { error } = await updateRoleOrder(newOrder);
+    if (error) Alert.alert('Error', error.message);
   };
 
   const handleLeaveHouse = () => {
@@ -288,6 +332,67 @@ export default function SettingsScreen() {
           })}
         </ThemedCard>
 
+        {/* Role Permissions — owner only, only when roles exist */}
+        {isOwner && houseRoles.length > 0 && (
+          <>
+            <ThemedDivider style={styles.divider} />
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <ShieldCheck size={18} color={primaryColor} />
+                <ThemedText style={styles.sectionTitle}>Role Permissions</ThemedText>
+              </View>
+              <ThemedText style={[styles.permHint, { color: mutedColor }]}>
+                Configure what each role can do. Higher roles in the list can also modify lower roles' items.
+              </ThemedText>
+            </View>
+
+            {/* Hierarchy order */}
+            <ThemedCard variant="outlined" style={styles.settingsCard}>
+              <View style={[styles.settingRow, { paddingBottom: spacing.xs }]}>
+                <ThemedText style={[styles.settingLabel, { fontSize: 13, opacity: 0.6 }]}>
+                  HIERARCHY (top = most authority)
+                </ThemedText>
+              </View>
+              {(roleOrder.length > 0 ? roleOrder : houseRoles).map((role, idx) => (
+                <View
+                  key={role}
+                  style={[
+                    styles.permRoleRow,
+                    idx < (roleOrder.length > 0 ? roleOrder : houseRoles).length - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor },
+                  ]}
+                >
+                  <View style={[styles.rankBadge, { backgroundColor: `${primaryColor}20` }]}>
+                    <ThemedText style={[styles.rankBadgeText, { color: primaryColor }]}>{idx + 1}</ThemedText>
+                  </View>
+                  <ThemedText style={[styles.permRoleName, { flex: 1 }]}>{role}</ThemedText>
+                  <View style={styles.permRoleActions}>
+                    <Pressable
+                      onPress={() => moveRoleUp(idx)}
+                      disabled={idx === 0}
+                      style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === 0 ? 0.3 : 1 }]}
+                    >
+                      <ChevronUp size={14} color={primaryColor} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => moveRoleDown(idx)}
+                      disabled={idx === (roleOrder.length > 0 ? roleOrder : houseRoles).length - 1}
+                      style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === (roleOrder.length > 0 ? roleOrder : houseRoles).length - 1 ? 0.3 : 1 }]}
+                    >
+                      <ChevronDown size={14} color={primaryColor} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => openPermEdit(role)}
+                      style={[styles.iconBtn, { backgroundColor: `${primaryColor}15` }]}
+                    >
+                      <Pencil size={14} color={primaryColor} />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </ThemedCard>
+          </>
+        )}
+
         {/* Household Actions */}
         <View style={styles.sectionHeader}>
           <ThemedText style={styles.sectionTitle}>Household</ThemedText>
@@ -413,6 +518,69 @@ export default function SettingsScreen() {
               >
                 <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>
                   {savingRole ? 'Saving…' : 'Save'}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </ThemedView>
+        </View>
+      </Modal>
+
+      {/* Role Permissions Edit Modal */}
+      <Modal
+        visible={!!permEditRole}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPermEditRole(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <ThemedView style={[styles.modalSheet, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="subtitle">{permEditRole} — Permissions</ThemedText>
+              <Pressable onPress={() => setPermEditRole(null)} hitSlop={8}>
+                <X size={24} color={primaryColor} />
+              </Pressable>
+            </View>
+            <ScrollView style={{ paddingHorizontal: spacing.lg }}>
+              <ThemedText style={[styles.modalHint, { color: mutedColor, paddingTop: spacing.md, paddingBottom: spacing.sm }]}>
+                Edit/Delete only apply to items created by members with equal or lower authority.
+              </ThemedText>
+              {([
+                { tab: 'tasks' as const, label: 'Tasks' },
+                { tab: 'shop' as const, label: 'Shopping' },
+                { tab: 'finances' as const, label: 'Finances' },
+                { tab: 'calendar' as const, label: 'Calendar' },
+              ] as const).map(({ tab, label }) => (
+                <View key={tab} style={[styles.permTabSection, { borderColor }]}>
+                  <ThemedText style={[styles.permTabLabel, { color: primaryColor }]}>{label}</ThemedText>
+                  {([
+                    { key: 'canCreate' as const, label: 'Create new items' },
+                    { key: 'canEdit' as const, label: 'Edit items' },
+                    { key: 'canDelete' as const, label: 'Delete items' },
+                  ]).map(({ key, label: pLabel }) => (
+                    <View key={key} style={styles.permToggleRow}>
+                      <ThemedText style={styles.permToggleLabel}>{pLabel}</ThemedText>
+                      <Switch
+                        value={editingPerms[tab][key]}
+                        onValueChange={() => togglePerm(tab, key)}
+                        trackColor={{ false: '#ccc', true: primaryColor }}
+                        thumbColor="white"
+                      />
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </ScrollView>
+            <View style={styles.modalFooter}>
+              <Pressable onPress={() => setPermEditRole(null)} style={[styles.footerBtn, { borderColor }]}>
+                <ThemedText style={styles.footerBtnText}>Cancel</ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={handleSavePerms}
+                disabled={savingPerms}
+                style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor, opacity: savingPerms ? 0.6 : 1 }]}
+              >
+                <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>
+                  {savingPerms ? 'Saving…' : 'Save'}
                 </ThemedText>
               </Pressable>
             </View>
@@ -571,6 +739,16 @@ const styles = StyleSheet.create({
   emptyMembers: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
   emptyMembersText: { fontSize: 14 },
   divider: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
+  permHint: { fontSize: 12, lineHeight: 17, marginTop: spacing.xs },
+  permRoleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
+  rankBadge: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  rankBadgeText: { fontSize: 11, fontWeight: '800' },
+  permRoleName: { fontWeight: '600', fontSize: 14 },
+  permRoleActions: { flexDirection: 'row', gap: spacing.xs },
+  permTabSection: { borderWidth: 1, borderRadius: 12, marginBottom: spacing.md, overflow: 'hidden' },
+  permTabLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', paddingHorizontal: spacing.md, paddingTop: spacing.sm + 2, paddingBottom: spacing.xs },
+  permToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  permToggleLabel: { fontSize: 14, fontWeight: '500' },
   codeBox: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.md, gap: spacing.md },
   codeText: { flex: 1, fontSize: 18, fontWeight: '800', letterSpacing: 2, fontFamily: 'monospace' },
   copyBtn: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

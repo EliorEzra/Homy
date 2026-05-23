@@ -9,6 +9,7 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/context/auth';
 import { useHouse } from '@/context/house';
 import { useExpenses } from '@/context/expenses_db';
+import { usePermissions } from '@/hooks/use-permissions';
 
 export default function FinancesScreen() {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function FinancesScreen() {
   const { expenses, addExpense, deleteExpense } = useExpenses();
 
   const isOwner = house?.roles?.includes('owner') ?? false;
+  const { canCreate, canDelete } = usePermissions();
 
   const MEMBERS = members.length > 0
     ? members.map(m => m.userId === user?.$id
@@ -200,13 +202,15 @@ export default function FinancesScreen() {
                 </View>
                 <View style={styles.expenseRight}>
                   <ThemedText style={styles.expenseAmt}>${(item.amount as number).toFixed(2)}</ThemedText>
-                  <Pressable onPress={() => Alert.alert(
-                    'Delete Expense',
-                    'Remove this expense? Balances will update automatically.',
-                    [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(item.$id) }]
-                  )} hitSlop={8}>
-                    <Trash2 size={15} color="#ff3748" />
-                  </Pressable>
+                  {canDelete('finances', item.userId as string) && (
+                    <Pressable onPress={() => Alert.alert(
+                      'Delete Expense',
+                      'Remove this expense? Balances will update automatically.',
+                      [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(item.$id) }]
+                    )} hitSlop={8}>
+                      <Trash2 size={15} color="#ff3748" />
+                    </Pressable>
+                  )}
                 </View>
               </View>
             </ThemedCard>
@@ -215,9 +219,11 @@ export default function FinancesScreen() {
 
       </ScrollView>
 
-      <Pressable style={[styles.fab, { backgroundColor: primaryColor }]} onPress={() => setFormVisible(true)}>
-        <Plus size={28} color="white" strokeWidth={3} />
-      </Pressable>
+      {canCreate('finances') && (
+        <Pressable style={[styles.fab, { backgroundColor: primaryColor }]} onPress={() => setFormVisible(true)}>
+          <Plus size={28} color="white" strokeWidth={3} />
+        </Pressable>
+      )}
 
       {/* ── Add Expense Modal ─────────────────────────────────────────────── */}
       <Modal visible={formVisible} animationType="slide" transparent onRequestClose={() => setFormVisible(false)}>

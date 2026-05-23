@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, X } from 'lucide-react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useShop } from '@/context/shop_db';
+import { usePermissions } from '@/hooks/use-permissions';
 import { Models } from 'react-native-appwrite';
 
 type Category = 'Produce' | 'Dairy' | 'Meat' | 'Bakery' | 'Frozen' | 'Drinks' | 'Other';
@@ -21,6 +22,7 @@ const CATEGORY_COLORS: Record<Category, string> = {
 
 export default function ShopScreen() {
   const { shopItems, addShopItem, updateShopItem, deleteShopItem, clearCompleted } = useShop();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [filter, setFilter] = useState<'all' | 'pending' | 'done'>('all');
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -126,7 +128,7 @@ export default function ShopScreen() {
           title={filter === 'all' ? 'List is Empty' : filter === 'pending' ? 'Nothing Pending' : 'Nothing Done Yet'}
           description={filter === 'all' ? 'Tap + to add items to your list' : 'Keep up the great work!'}
           icon={<ShoppingCart size={64} color="#4d00ff" opacity={0.5} />}
-          action={filter === 'all' ? (
+          action={filter === 'all' && canCreate('shop') ? (
             <Pressable onPress={() => setAdding(true)} style={[styles.emptyAdd, { backgroundColor: primaryColor }]}>
               <ThemedText style={styles.emptyAddText}>+ Add Item</ThemedText>
             </Pressable>
@@ -138,7 +140,10 @@ export default function ShopScreen() {
           keyExtractor={item => item.$id}
           renderItem={({ item }) => (
             <ThemedCard variant="outlined" style={[styles.itemCard, item.checked && styles.checkedCard]}>
-              <Pressable style={styles.itemLeft} onPress={() => handleToggle(item)}>
+              <Pressable
+                style={styles.itemLeft}
+                onPress={canEdit('shop', item.userId as string) ? () => handleToggle(item) : undefined}
+              >
                 {item.checked
                   ? <CheckCircle size={22} color={primaryColor} strokeWidth={2.5} />
                   : <Circle size={22} color={mutedColor} strokeWidth={2} />}
@@ -155,9 +160,11 @@ export default function ShopScreen() {
                   </View>
                 </View>
               </Pressable>
-              <Pressable onPress={() => handleDelete(item.$id)} hitSlop={8}>
-                <Trash2 size={18} color="#ff3748" />
-              </Pressable>
+              {canDelete('shop', item.userId as string) && (
+                <Pressable onPress={() => handleDelete(item.$id)} hitSlop={8}>
+                  <Trash2 size={18} color="#ff3748" />
+                </Pressable>
+              )}
             </ThemedCard>
           )}
           contentContainerStyle={styles.list}
@@ -165,7 +172,7 @@ export default function ShopScreen() {
         />
       )}
 
-      {!adding && (
+      {!adding && canCreate('shop') && (
         <Pressable style={[styles.fab, { backgroundColor: primaryColor }]} onPress={() => setAdding(true)}>
           <Plus size={28} color="white" strokeWidth={3} />
         </Pressable>

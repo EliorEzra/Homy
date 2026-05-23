@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState, createContext } from "react";
 import { team, functions, databases } from "@/lib/appwrite";
 import { Models, ID, Query } from "react-native-appwrite";
-import { DatabaseIDs } from "./db_models";
+import { DatabaseIDs, RolePermissions } from "./db_models";
 import { useAuth } from "./auth";
 import { router, useNavigationContainerRef, useRouter, useSegments } from "expo-router";
 
@@ -50,6 +50,10 @@ interface RemoveMemberResponse {
   error: any | undefined;
 }
 
+interface UpdateRolePermissionsResponse {
+  error?: any;
+}
+
 interface HouseContextValue {
   createHouse: (name: string, roles?: string[]) => Promise<CreateHouseResponse>;
   addUser: (email: string, roles?: string[]) => Promise<AddUserResponse>;
@@ -65,6 +69,10 @@ interface HouseContextValue {
   houseTeamId: string | null;
   members: Models.Membership[];
   houseRoles: string[];
+  roleOrder: string[];
+  rolePermissions: Record<string, RolePermissions>;
+  updateRolePermissions: (roleName: string, perms: RolePermissions) => Promise<UpdateRolePermissionsResponse>;
+  updateRoleOrder: (order: string[]) => Promise<UpdateRolePermissionsResponse>;
 }
 
 interface ProviderProps {
@@ -82,6 +90,8 @@ export function HouseProvider(props: ProviderProps) {
     const [houseInitialized, setHouseInitialized] = useState<boolean>(false);
     const [members, setMembers] = useState<Models.Membership[]>([]);
     const [houseRoles, setHouseRoles] = useState<string[]>([]);
+    const [roleOrder, setRoleOrder] = useState<string[]>([]);
+    const [rolePermissions, setRolePermissions] = useState<Record<string, RolePermissions>>({});
 
     const {user} = useAuth()
 
@@ -114,6 +124,14 @@ export function HouseProvider(props: ProviderProps) {
         }, [house, user, segments, houseInitialized, isNavigationReady]);
     };
 
+    // Apply all prefs fields from a raw prefs object
+    function applyPrefs(prefs: any) {
+        const roles: string[] = prefs?.roles ?? [];
+        setHouseRoles(roles);
+        setRoleOrder(prefs?.roleOrder ?? [...roles]);
+        setRolePermissions(prefs?.rolePermissions ?? {});
+    }
+
     // Re-fetch and set all house state from Appwrite (used after joining)
     async function refreshHouse() {
         if (!user) return;
@@ -126,7 +144,7 @@ export function HouseProvider(props: ProviderProps) {
             });
             setHouse(houseMembers.memberships[0]);
             setHouseTeamId(houseTeam.$id);
-            setHouseRoles((houseTeam.prefs as any)?.roles ?? []);
+            applyPrefs(houseTeam.prefs);
             const allMembers = await team.listMemberships({ teamId: houseTeam.$id });
             setMembers(allMembers.memberships);
         }
@@ -140,9 +158,11 @@ export function HouseProvider(props: ProviderProps) {
             // not "available roles". We store the house role list in team prefs instead.
             const response = await team.create({ teamId: ID.unique(), name });
             // Persist the defined roles in the team's prefs so any device can read them later
-            if (roles && roles.length > 0) {
-                await team.updatePrefs({ teamId: response.$id, prefs: { roles } });
-            }
+            const initRoles = roles ?? [];
+            await team.updatePrefs({
+                teamId: response.$id,
+                prefs: { roles: initRoles, roleOrder: initRoles, rolePermissions: {} },
+            });
             const memberships = await team.listMemberships({
                 teamId: response.$id,
                 queries: [Query.equal('userId', user.$id)],
@@ -151,7 +171,9 @@ export function HouseProvider(props: ProviderProps) {
             if (memberships.total != 1) throw new Error("Created team but user is not part of it");
             setHouse(memberships.memberships[0]);
             setHouseTeamId(response.$id);
-            setHouseRoles(roles ?? []);
+            setHouseRoles(initRoles);
+            setRoleOrder(initRoles);
+            setRolePermissions({});
             setMembers(memberships.memberships);
             return { data: response, error: undefined };
         } catch (error) {
@@ -237,7 +259,8 @@ export function HouseProvider(props: ProviderProps) {
         try {
             if (!house || !houseTeamId) throw new Error("Cannot leave house while not part of a house");
             await team.deleteMembership({ teamId: houseTeamId, membershipId: house.$id });
-            setHouse(null); setHouseTeamId(null); setMembers([]); setHouseRoles([]);
+            setHouse(null); setHouseTeamId(null); setMembers([]);
+            setHouseRoles([]); setRoleOrder([]); setRolePermissions({});
             return { data: {}, error: undefined };
         } catch (error) {
             return { data: undefined, error: error as Error };
@@ -271,10 +294,40 @@ export function HouseProvider(props: ProviderProps) {
             }));
 
             await team.delete({ teamId: houseTeamId });
-            setHouse(null); setHouseTeamId(null); setMembers([]); setHouseRoles([]);
+            setHouse(null); setHouseTeamId(null); setMembers([]);
+            setHouseRoles([]); setRoleOrder([]); setRolePermissions({});
             return { data: {}, error: undefined };
         } catch (error) {
             return { data: undefined, error: error as Error };
+        }
+    }
+
+    async function updateRolePermissions(roleName: string, perms: RolePermissions): Promise<UpdateRolePermissionsResponse> {
+        try {
+            if (!houseTeamId) throw new Error("Not in a house");
+            const newPerms = { ...rolePermissions, [roleName]: perms };
+            await team.updatePrefs({
+                teamId: houseTeamId,
+                prefs: { roles: houseRoles, roleOrder, rolePermissions: newPerms },
+            });
+            setRolePermissions(newPerms);
+            return {};
+        } catch (error) {
+            return { error };
+        }
+    }
+
+    async function updateRoleOrder(order: string[]): Promise<UpdateRolePermissionsResponse> {
+        try {
+            if (!houseTeamId) throw new Error("Not in a house");
+            await team.updatePrefs({
+                teamId: houseTeamId,
+                prefs: { roles: houseRoles, roleOrder: order, rolePermissions },
+            });
+            setRoleOrder(order);
+            return {};
+        } catch (error) {
+            return { error };
         }
     }
 
@@ -339,11 +392,12 @@ export function HouseProvider(props: ProviderProps) {
                 });
                 setHouse(houseMembers.memberships[0]);
                 setHouseTeamId(houseTeam.$id);
-                setHouseRoles((houseTeam.prefs as any)?.roles ?? []);
+                applyPrefs(houseTeam.prefs);
                 const allMembers = await team.listMemberships({ teamId: houseTeam.$id });
                 setMembers(allMembers.memberships);
             } else {
-                setHouse(null); setHouseTeamId(null); setMembers([]); setHouseRoles([]);
+                setHouse(null); setHouseTeamId(null); setMembers([]);
+                setHouseRoles([]); setRoleOrder([]); setRolePermissions({});
             }
           } catch (error) {
             console.log("error", error);
@@ -367,10 +421,14 @@ export function HouseProvider(props: ProviderProps) {
             leaveHouse,
             deleteHouse,
             joinHouseByCode,
+            updateRolePermissions,
+            updateRoleOrder,
             house,
             houseTeamId,
             members,
             houseRoles,
+            roleOrder,
+            rolePermissions,
         }}>
             {props.children}
         </HouseContext.Provider>

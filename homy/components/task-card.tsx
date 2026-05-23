@@ -41,10 +41,12 @@ export function TaskCard({ title, description, dueDate, status = "todo", complet
         </Pressable>
         <View style={styles.right}>
           {getStatusBadge(status)}
-          <View style={styles.actions}>
-            <Pressable onPress={onEdit} hitSlop={8} style={styles.iconBtn}><Edit size={18} color={iconColor} /></Pressable>
-            <Pressable onPress={onDelete} hitSlop={8} style={styles.iconBtn}><Trash2 size={18} color="#ff3748" /></Pressable>
-          </View>
+          {(onEdit || onDelete) && (
+            <View style={styles.actions}>
+              {onEdit && <Pressable onPress={onEdit} hitSlop={8} style={styles.iconBtn}><Edit size={18} color={iconColor} /></Pressable>}
+              {onDelete && <Pressable onPress={onDelete} hitSlop={8} style={styles.iconBtn}><Trash2 size={18} color="#ff3748" /></Pressable>}
+            </View>
+          )}
         </View>
       </View>
     </ThemedCard>

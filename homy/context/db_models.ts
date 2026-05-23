@@ -1,3 +1,27 @@
+// ─── Role permission types ────────────────────────────────────────────────────
+export type TabPermission = {
+  canCreate: boolean;
+  canEdit: boolean;    // hierarchy-enforced: only applies to same/lower rank creators
+  canDelete: boolean;  // hierarchy-enforced: only applies to same/lower rank creators
+};
+
+export type RolePermissions = {
+  tasks: TabPermission;
+  shop: TabPermission;
+  finances: TabPermission;
+  calendar: TabPermission;
+};
+
+export const DEFAULT_TAB_PERMISSION: TabPermission = { canCreate: true, canEdit: true, canDelete: true };
+
+export const DEFAULT_ROLE_PERMISSIONS: RolePermissions = {
+  tasks: DEFAULT_TAB_PERMISSION,
+  shop: DEFAULT_TAB_PERMISSION,
+  finances: DEFAULT_TAB_PERMISSION,
+  calendar: DEFAULT_TAB_PERMISSION,
+};
+
+// ─── Database IDs ─────────────────────────────────────────────────────────────
 export const DatabaseIDs = {
     DATABASE: '69f0d87e002066c90e1f',
     TASKS: 'tasks',
