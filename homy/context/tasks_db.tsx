@@ -3,6 +3,7 @@ import { databases } from "@/lib/appwrite";
 import { Models, ID, Permission, Role } from "react-native-appwrite";
 import { Task, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
+import { useHouse } from "./house";
 
 interface ProviderProps {
   children: React.ReactNode;
@@ -41,6 +42,7 @@ const TasksContext = createContext<TasksDBContextValue | undefined>(undefined);
 export function TasksProvider(props: ProviderProps) {
   const [tasks, setTasks] = useState<Models.Row[] | null>([]);
   const { user } = useAuth();
+  const { houseTeamId } = useHouse();
 
   async function getTasks(): Promise<getTasksResponse> {
     try {
@@ -48,7 +50,10 @@ export function TasksProvider(props: ProviderProps) {
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.TASKS,
       });
-      setTasks(response.rows);
+      const filtered = houseTeamId
+        ? response.rows.filter((r: Models.Row) => r.team_id === houseTeamId)
+        : [];
+      setTasks(filtered);
       return { data: response, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -71,6 +76,7 @@ export function TasksProvider(props: ProviderProps) {
           status: data.status ?? "todo",
           completed: data.completed ?? false,
           userId: user.$id,
+          team_id: houseTeamId ?? "",
         },
         permissions: [
           Permission.read(Role.user(user.$id)),
@@ -78,7 +84,7 @@ export function TasksProvider(props: ProviderProps) {
           ...permissions,
         ],
       });
-      setTasks(prev => [...(prev ?? []), { $id: rowId, task_text: data.task_text, description: data.description ?? "", due_date: data.due_date ?? "", status: data.status ?? "todo", completed: data.completed ?? false, userId: user.$id } as Models.Row]);
+      setTasks(prev => [...(prev ?? []), { $id: rowId, task_text: data.task_text, description: data.description ?? "", due_date: data.due_date ?? "", status: data.status ?? "todo", completed: data.completed ?? false, userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -116,7 +122,10 @@ export function TasksProvider(props: ProviderProps) {
   }
 
   useEffect(() => {
-    if (!user) return;
+    if (!houseTeamId) {
+      setTasks([]);
+      return;
+    }
     (async () => {
       try {
         await getTasks();
@@ -125,7 +134,7 @@ export function TasksProvider(props: ProviderProps) {
         setTasks(null);
       }
     })();
-  }, [user?.$id]);
+  }, [houseTeamId]);
 
   return (
     <TasksContext.Provider value={{ getTasks, addTask, updateTask, deleteTask, tasks }}>

@@ -3,6 +3,7 @@ import { databases } from "@/lib/appwrite";
 import { Models, ID, Permission, Role } from "react-native-appwrite";
 import { ShopItem, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
+import { useHouse } from "./house";
 
 interface ProviderProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ const ShopContext = createContext<ShopDBContextValue | undefined>(undefined);
 export function ShopProvider(props: ProviderProps) {
   const [shopItems, setShopItems] = useState<Models.Row[] | null>([]);
   const { user } = useAuth();
+  const { houseTeamId } = useHouse();
 
   async function getShopItems() {
     try {
@@ -28,7 +30,10 @@ export function ShopProvider(props: ProviderProps) {
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.SHOP_ITEMS,
       });
-      setShopItems(response.rows);
+      const filtered = houseTeamId
+        ? response.rows.filter((r: Models.Row) => r.team_id === houseTeamId)
+        : [];
+      setShopItems(filtered);
     } catch (error) {
       console.log("error fetching shop items", error);
       setShopItems(null);
@@ -50,6 +55,7 @@ export function ShopProvider(props: ProviderProps) {
           category: data.category ?? "Other",
           checked: data.checked ?? false,
           userId: user.$id,
+          team_id: houseTeamId ?? "",
         },
         permissions: [
           Permission.read(Role.user(user.$id)),
@@ -57,7 +63,7 @@ export function ShopProvider(props: ProviderProps) {
         ],
       });
       setShopItems(prev => [
-        { $id: rowId, name: data.name, quantity: data.quantity ?? "1", category: data.category ?? "Other", checked: false, userId: user.$id } as Models.Row,
+        { $id: rowId, name: data.name, quantity: data.quantity ?? "1", category: data.category ?? "Other", checked: false, userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row,
         ...(prev ?? []),
       ]);
       return { data: {} };
@@ -101,9 +107,12 @@ export function ShopProvider(props: ProviderProps) {
   }
 
   useEffect(() => {
-    if (!user) return;
+    if (!houseTeamId) {
+      setShopItems([]);
+      return;
+    }
     getShopItems();
-  }, [user?.$id]);
+  }, [houseTeamId]);
 
   return (
     <ShopContext.Provider value={{ shopItems, addShopItem, updateShopItem, deleteShopItem, clearCompleted }}>

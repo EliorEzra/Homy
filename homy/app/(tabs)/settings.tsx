@@ -1,4 +1,5 @@
-import { StyleSheet, View, Switch, ScrollView, Pressable, Appearance, Alert } from 'react-native';
+import { StyleSheet, View, Switch, ScrollView, Pressable, Appearance, Alert, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedCard } from '@/components/themed-card';
@@ -8,20 +9,30 @@ import { useAuth } from '@/context/auth';
 import { useHouse } from '@/context/house';
 import { spacing } from '@/theme/theme';
 import { useColorScheme } from 'react-native';
-import { useEffect, useState } from 'react';
-import { Models } from 'react-native-appwrite';
-import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown } from 'lucide-react-native';
+import { useState } from 'react';
+import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X, Mail, Copy, Check } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
-  const { house, houseTeamId, getUsers, leaveHouse, deleteHouse } = useHouse();
+  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members } = useHouse();
   const colorScheme = useColorScheme();
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
   const borderColor = useThemeColor({}, 'inputBorder');
+  const inputBg = useThemeColor({}, 'inputBackground');
+  const textColor = useThemeColor({}, 'text');
   const isDark = colorScheme === 'dark';
 
-  const [members, setMembers] = useState<Models.Membership[]>([]);
+  const [inviteVisible, setInviteVisible] = useState(false);
+  const [inviteTab, setInviteTab] = useState<'email' | 'code'>('email');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  // Format teamId as readable groups: e.g. ABCDE-FGHIJ-KLMNO-PQRST
+  const houseCode = houseTeamId
+    ? houseTeamId.toUpperCase().match(/.{1,5}/g)?.join('-') ?? houseTeamId
+    : null;
 
   const displayName = user?.name
     ? user.name.charAt(0).toUpperCase() + user.name.slice(1)
@@ -30,15 +41,33 @@ export default function SettingsScreen() {
 
   const isOwner = house?.roles?.includes('owner') ?? false;
 
-  useEffect(() => {
+  const handleCopyCode = async () => {
     if (!houseTeamId) return;
-    getUsers().then(({ data }) => {
-      if (data) setMembers(data.memberships);
-    });
-  }, [houseTeamId]);
+    await Clipboard.setStringAsync(houseTeamId);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  };
 
   const toggleDarkMode = (val: boolean) => {
     Appearance.setColorScheme(val ? 'dark' : 'light');
+  };
+
+  const handleInvite = async () => {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+    setInviting(true);
+    const { error } = await addUser(email);
+    setInviting(false);
+    if (error) {
+      Alert.alert('Invite Failed', error.message);
+    } else {
+      setInviteEmail('');
+      setInviteVisible(false);
+      Alert.alert('Invite Sent', `An invitation has been sent to ${email}.`);
+    }
   };
 
   const handleLeaveHouse = () => {
@@ -130,6 +159,12 @@ export default function SettingsScreen() {
             <View style={[styles.memberCount, { backgroundColor: `${primaryColor}20` }]}>
               <ThemedText style={[styles.memberCountText, { color: primaryColor }]}>{members.length}</ThemedText>
             </View>
+            {isOwner && (
+              <Pressable onPress={() => setInviteVisible(true)} style={[styles.inviteBtn, { backgroundColor: `${primaryColor}20` }]}>
+                <UserPlus size={14} color={primaryColor} />
+                <ThemedText style={[styles.inviteBtnText, { color: primaryColor }]}>Invite</ThemedText>
+              </Pressable>
+            )}
           </View>
         </View>
         <ThemedCard variant="outlined" style={styles.settingsCard}>
@@ -180,8 +215,6 @@ export default function SettingsScreen() {
             );
           })}
         </ThemedCard>
-
-        <ThemedDivider style={styles.divider} />
 
         {/* Household Actions */}
         <View style={styles.sectionHeader}>
@@ -236,6 +269,114 @@ export default function SettingsScreen() {
         </ThemedCard>
 
       </ScrollView>
+
+      {/* Invite Member Modal */}
+      <Modal
+        visible={inviteVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => { setInviteVisible(false); setInviteEmail(''); setInviteTab('email'); }}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalWrapper}>
+          <View style={styles.modalOverlay}>
+            <ThemedView style={styles.modalSheet}>
+
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <ThemedText type="subtitle">Invite Member</ThemedText>
+                <Pressable onPress={() => { setInviteVisible(false); setInviteEmail(''); setInviteTab('email'); }} hitSlop={8}>
+                  <X size={24} color={primaryColor} />
+                </Pressable>
+              </View>
+
+              {/* Tabs */}
+              <View style={[styles.modalTabs, { borderColor }]}>
+                <Pressable
+                  style={[styles.modalTab, inviteTab === 'email' && { borderBottomColor: primaryColor, borderBottomWidth: 2 }]}
+                  onPress={() => setInviteTab('email')}
+                >
+                  <Mail size={15} color={inviteTab === 'email' ? primaryColor : mutedColor} />
+                  <ThemedText style={[styles.modalTabText, { color: inviteTab === 'email' ? primaryColor : mutedColor }]}>
+                    By Email
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalTab, inviteTab === 'code' && { borderBottomColor: primaryColor, borderBottomWidth: 2 }]}
+                  onPress={() => setInviteTab('code')}
+                >
+                  <Copy size={15} color={inviteTab === 'code' ? primaryColor : mutedColor} />
+                  <ThemedText style={[styles.modalTabText, { color: inviteTab === 'code' ? primaryColor : mutedColor }]}>
+                    By Code
+                  </ThemedText>
+                </Pressable>
+              </View>
+
+              {/* Email tab */}
+              {inviteTab === 'email' && (
+                <>
+                  <View style={styles.modalBody}>
+                    <ThemedText style={[styles.modalHint, { color: mutedColor }]}>
+                      They will receive an email invitation to join your household.
+                    </ThemedText>
+                    <View style={[styles.emailRow, { borderColor, backgroundColor: inputBg }]}>
+                      <Mail size={18} color={mutedColor} />
+                      <TextInput
+                        style={[styles.emailInput, { color: textColor }]}
+                        placeholder="Enter email address"
+                        placeholderTextColor={mutedColor}
+                        value={inviteEmail}
+                        onChangeText={setInviteEmail}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoFocus
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.modalFooter}>
+                    <Pressable
+                      onPress={() => { setInviteVisible(false); setInviteEmail(''); setInviteTab('email'); }}
+                      style={[styles.footerBtn, { borderColor }]}
+                    >
+                      <ThemedText style={styles.footerBtnText}>Cancel</ThemedText>
+                    </Pressable>
+                    <Pressable
+                      onPress={handleInvite}
+                      disabled={inviting}
+                      style={[styles.footerBtn, { backgroundColor: primaryColor, borderColor: primaryColor, opacity: inviting ? 0.6 : 1 }]}
+                    >
+                      <ThemedText style={[styles.footerBtnText, { color: 'white' }]}>
+                        {inviting ? 'Sending…' : 'Send Invite'}
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+
+              {/* Code tab */}
+              {inviteTab === 'code' && (
+                <View style={styles.modalBody}>
+                  <ThemedText style={[styles.modalHint, { color: mutedColor }]}>
+                    Share this code — anyone who enters it in the Join a House screen will be added instantly, no email needed.
+                  </ThemedText>
+                  <View style={[styles.codeBox, { borderColor, backgroundColor: inputBg }]}>
+                    <ThemedText style={[styles.codeText, { color: primaryColor }]}>{houseCode}</ThemedText>
+                    <Pressable onPress={handleCopyCode} style={[styles.copyBtn, { backgroundColor: `${primaryColor}20` }]}>
+                      {codeCopied
+                        ? <Check size={18} color="#1fc16b" />
+                        : <Copy size={18} color={primaryColor} />}
+                    </Pressable>
+                  </View>
+                  {codeCopied && (
+                    <ThemedText style={[styles.copiedHint, { color: '#1fc16b' }]}>Copied to clipboard!</ThemedText>
+                  )}
+                </View>
+              )}
+
+            </ThemedView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ThemedView>
   );
 }
@@ -273,4 +414,24 @@ const styles = StyleSheet.create({
   emptyMembers: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
   emptyMembersText: { fontSize: 14 },
   divider: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
+  codeBox: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.md, gap: spacing.md },
+  codeText: { flex: 1, fontSize: 18, fontWeight: '800', letterSpacing: 2, fontFamily: 'monospace' },
+  copyBtn: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  copiedHint: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: spacing.xs },
+  modalTabs: { flexDirection: 'row', borderBottomWidth: 1 },
+  modalTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.sm + 2 },
+  modalTabText: { fontSize: 13, fontWeight: '700' },
+  inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 10, marginLeft: 'auto' },
+  inviteBtnText: { fontSize: 12, fontWeight: '700' },
+  modalWrapper: { flex: 1, justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalSheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingTop: spacing.lg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.1)' },
+  modalBody: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, gap: spacing.md },
+  modalHint: { fontSize: 14, lineHeight: 20 },
+  emailRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
+  emailInput: { flex: 1, fontSize: 15 },
+  modalFooter: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.1)' },
+  footerBtn: { flex: 1, alignItems: 'center', paddingVertical: spacing.sm + 2, borderRadius: 10, borderWidth: 1 },
+  footerBtnText: { fontWeight: '700', fontSize: 15 },
 });

@@ -3,6 +3,7 @@ import { databases } from "@/lib/appwrite";
 import { Models, ID, Permission, Role } from "react-native-appwrite";
 import { Expense, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
+import { useHouse } from "./house";
 
 interface ProviderProps {
   children: React.ReactNode;
@@ -19,6 +20,7 @@ const ExpensesContext = createContext<ExpensesDBContextValue | undefined>(undefi
 export function ExpensesProvider(props: ProviderProps) {
   const [expenses, setExpenses] = useState<Models.Row[] | null>([]);
   const { user } = useAuth();
+  const { houseTeamId } = useHouse();
 
   async function getExpenses() {
     try {
@@ -26,7 +28,10 @@ export function ExpensesProvider(props: ProviderProps) {
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.EXPENSES,
       });
-      setExpenses(response.rows);
+      const filtered = houseTeamId
+        ? response.rows.filter((r: Models.Row) => r.team_id === houseTeamId)
+        : [];
+      setExpenses(filtered);
     } catch (error) {
       console.log("error fetching expenses", error);
       setExpenses(null);
@@ -49,6 +54,7 @@ export function ExpensesProvider(props: ProviderProps) {
           split_with: data.split_with ?? "",
           date: data.date ?? new Date().toLocaleDateString(),
           userId: user.$id,
+          team_id: houseTeamId ?? "",
         },
         permissions: [
           Permission.read(Role.user(user.$id)),
@@ -56,7 +62,7 @@ export function ExpensesProvider(props: ProviderProps) {
         ],
       });
       setExpenses(prev => [
-        { $id: rowId, title: data.title, amount: data.amount ?? 0, paid_by: data.paid_by ?? "", split_with: data.split_with ?? "", date: data.date ?? new Date().toLocaleDateString(), userId: user.$id } as Models.Row,
+        { $id: rowId, title: data.title, amount: data.amount ?? 0, paid_by: data.paid_by ?? "", split_with: data.split_with ?? "", date: data.date ?? new Date().toLocaleDateString(), userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row,
         ...(prev ?? []),
       ]);
       return { data: {} };
@@ -80,9 +86,12 @@ export function ExpensesProvider(props: ProviderProps) {
   }
 
   useEffect(() => {
-    if (!user) return;
+    if (!houseTeamId) {
+      setExpenses([]);
+      return;
+    }
     getExpenses();
-  }, [user?.$id]);
+  }, [houseTeamId]);
 
   return (
     <ExpensesContext.Provider value={{ expenses, addExpense, deleteExpense }}>

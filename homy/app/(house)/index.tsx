@@ -9,7 +9,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedCard } from "@/components/themed-card";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { spacing } from "@/theme/theme";
-import { Home, X, Users, Heart, Coffee, Pencil } from "lucide-react-native";
+import { Home, X, Users, Heart, Coffee, Pencil, LogIn } from "lucide-react-native";
 
 // ─── Preset role templates ────────────────────────────────────────────────────
 
@@ -100,20 +100,45 @@ const tagStyles = StyleSheet.create({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function CreateHouse() {
-  const { createHouse } = useHouse();
+  const { createHouse, joinHouseByCode } = useHouse();
   const router = useRouter();
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
   const borderColor = useThemeColor({}, 'inputBorder');
+  const textColor = useThemeColor({}, 'text');
+  const inputBg = useThemeColor({}, 'inputBackground');
+
+  // Mode toggle
+  const [mode, setMode] = useState<'create' | 'join'>('create');
+
+  // Create mode state
   const houseNameRef = useRef("");
   const [selectedPreset, setSelectedPreset] = useState<string>('family');
   const [roles, setRoles] = useState<string[]>(PRESETS[0].roles);
   const [loading, setLoading] = useState(false);
 
+  // Join mode state
+  const [joinCode, setJoinCode] = useState('');
+  const [joining, setJoining] = useState(false);
+
   const handleSelectPreset = (preset: Preset) => {
     setSelectedPreset(preset.id);
     if (preset.id !== 'custom') setRoles(preset.roles);
     else setRoles([]);
+  };
+
+  const handleJoin = async () => {
+    const code = joinCode.trim();
+    if (!code) { Alert.alert("Missing Code", "Please enter the invite code."); return; }
+    setJoining(true);
+    const { error } = await joinHouseByCode(code);
+    setJoining(false);
+    if (error) {
+      Alert.alert("Could Not Join", error?.message ?? "Invalid or expired code.");
+    } else {
+      // Navigation is handled by useProtectedRoute once house state updates
+      router.replace("/(tabs)/home");
+    }
   };
 
   return (
@@ -132,13 +157,73 @@ export default function CreateHouse() {
               <ThemedText style={[styles.tagline, { color: mutedColor }]}>Set up your household</ThemedText>
             </View>
 
-            <ThemedText style={styles.title}>Create a House</ThemedText>
-            <ThemedText style={[styles.subtitle, { color: mutedColor }]}>
-              Give your home a name and define the roles for your household members.
-            </ThemedText>
+            {/* Mode toggle */}
+            <View style={[styles.modeToggle, { borderColor }]}>
+              <Pressable
+                style={[styles.modeTab, mode === 'create' && { backgroundColor: primaryColor }]}
+                onPress={() => setMode('create')}
+              >
+                <Home size={15} color={mode === 'create' ? 'white' : mutedColor} />
+                <ThemedText style={[styles.modeTabText, { color: mode === 'create' ? 'white' : mutedColor }]}>
+                  Create a House
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.modeTab, mode === 'join' && { backgroundColor: primaryColor }]}
+                onPress={() => setMode('join')}
+              >
+                <LogIn size={15} color={mode === 'join' ? 'white' : mutedColor} />
+                <ThemedText style={[styles.modeTabText, { color: mode === 'join' ? 'white' : mutedColor }]}>
+                  Join a House
+                </ThemedText>
+              </Pressable>
+            </View>
 
-            {/* Form */}
-            <ThemedCard variant="elevated" style={styles.card}>
+            {mode === 'create' && (
+              <ThemedText style={[styles.subtitle, { color: mutedColor }]}>
+                Give your home a name and define the roles for your household members.
+              </ThemedText>
+            )}
+            {mode === 'join' && (
+              <ThemedText style={[styles.subtitle, { color: mutedColor }]}>
+                Enter the invite code shared by your household owner to request access.
+              </ThemedText>
+            )}
+
+            {/* ── Join form ─────────────────────────────── */}
+            {mode === 'join' && (
+              <>
+                <ThemedCard variant="elevated" style={styles.card}>
+                  <View style={styles.field}>
+                    <View style={styles.fieldHeader}>
+                      <LogIn size={16} color={primaryColor} />
+                      <ThemedText style={styles.label}>Invite Code</ThemedText>
+                    </View>
+                    <ThemedText style={[styles.hint, { color: mutedColor }]}>
+                      Ask the house owner for their code — find it in their Settings page.
+                    </ThemedText>
+                    <TextInput
+                      style={[styles.codeInput, { borderColor, backgroundColor: inputBg, color: textColor }]}
+                      placeholder="Paste or type the invite code"
+                      placeholderTextColor={mutedColor}
+                      value={joinCode}
+                      onChangeText={setJoinCode}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </ThemedCard>
+                <ThemedButton
+                  onPress={handleJoin}
+                  title={joining ? "Sending…" : "Request to Join"}
+                  disabled={joining}
+                  style={styles.button}
+                />
+              </>
+            )}
+
+            {/* ── Create form ───────────────────────────── */}
+            {mode === 'create' && <><ThemedCard variant="elevated" style={styles.card}>
 
               {/* House Name */}
               <View style={styles.field}>
@@ -232,6 +317,7 @@ export default function CreateHouse() {
               disabled={loading}
               style={styles.button}
             />
+            </>}
 
           </ScrollView>
         </KeyboardAvoidingView>
@@ -262,4 +348,8 @@ const styles = StyleSheet.create({
   presetRoleChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 16, borderWidth: 1 },
   presetRoleText: { fontSize: 13, fontWeight: '600' },
   button: { marginTop: spacing.sm },
+  modeToggle: { flexDirection: 'row', borderWidth: 1, borderRadius: 12, overflow: 'hidden', marginBottom: spacing.lg },
+  modeTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm + 2 },
+  modeTabText: { fontSize: 13, fontWeight: '700' },
+  codeInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, fontSize: 15, fontFamily: 'monospace' },
 });

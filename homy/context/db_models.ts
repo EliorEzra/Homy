@@ -4,6 +4,7 @@ export const DatabaseIDs = {
     EVENTS: 'events',
     SHOP_ITEMS: 'shop_items',
     EXPENSES: 'expenses',
+    JOIN_REQUESTS: 'join_requests',
 }
 
 export type Task = {
@@ -14,6 +15,7 @@ export type Task = {
     completed?: boolean;
     assigned_to?: string;
     userId?: string;
+    team_id?: string;
 }
 
 export type CalEvent = {
@@ -22,6 +24,7 @@ export type CalEvent = {
     time?: string;
     description?: string;
     userId?: string;
+    team_id?: string;
 }
 
 export type ShopItem = {
@@ -30,6 +33,7 @@ export type ShopItem = {
     category?: string;
     checked?: boolean;
     userId?: string;
+    team_id?: string;
 }
 
 export type Expense = {
@@ -39,4 +43,5 @@ export type Expense = {
     split_with?: string; // comma-separated, e.g. "Me,Alex"
     date?: string;
     userId?: string;
+    team_id?: string;
 }
