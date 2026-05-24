@@ -59,6 +59,8 @@ export function ExpensesProvider(props: ProviderProps) {
         permissions: [
           Permission.read(Role.user(user.$id)),
           Permission.write(Role.user(user.$id)),
+          // All house members can read; only the creator can write
+          ...(houseTeamId ? [Permission.read(Role.team(houseTeamId))] : []),
         ],
       });
       setExpenses(prev => [

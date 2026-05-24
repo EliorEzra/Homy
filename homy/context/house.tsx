@@ -54,6 +54,10 @@ interface UpdateRolePermissionsResponse {
   error?: any;
 }
 
+interface TransferOwnershipResponse {
+  error?: any;
+}
+
 interface HouseContextValue {
   createHouse: (name: string, roles?: string[]) => Promise<CreateHouseResponse>;
   addUser: (email: string, roles?: string[]) => Promise<AddUserResponse>;
@@ -73,6 +77,7 @@ interface HouseContextValue {
   rolePermissions: Record<string, RolePermissions>;
   updateRolePermissions: (roleName: string, perms: RolePermissions) => Promise<UpdateRolePermissionsResponse>;
   updateRoleOrder: (order: string[]) => Promise<UpdateRolePermissionsResponse>;
+  transferOwnership: (newOwnerMembershipId: string) => Promise<TransferOwnershipResponse>;
 }
 
 interface ProviderProps {
@@ -302,6 +307,41 @@ export function HouseProvider(props: ProviderProps) {
         }
     }
 
+    async function transferOwnership(newOwnerMembershipId: string): Promise<TransferOwnershipResponse> {
+        try {
+            if (!houseTeamId) throw new Error("Not in a house");
+            if (!house) throw new Error("No house membership found");
+
+            // Give the new member the owner role
+            const newOwnerUpdated = await team.updateMembership({
+                teamId: houseTeamId,
+                membershipId: newOwnerMembershipId,
+                roles: ['owner'],
+            });
+
+            // Strip owner role from current user (keep any non-owner roles they had)
+            const myCurrentRoles = (house.roles as string[] ?? []).filter(r => r !== 'owner');
+            const selfUpdated = await team.updateMembership({
+                teamId: houseTeamId,
+                membershipId: house.$id,
+                roles: myCurrentRoles,
+            });
+
+            // Update local state
+            setMembers(prev => prev.map(m => {
+                if (m.$id === newOwnerMembershipId) return { ...m, roles: newOwnerUpdated.roles };
+                if (m.$id === house.$id) return { ...m, roles: selfUpdated.roles };
+                return m;
+            }));
+            // Update current user's membership so isOwner flips immediately
+            setHouse(prev => prev ? { ...prev, roles: selfUpdated.roles } : null);
+
+            return {};
+        } catch (error) {
+            return { error };
+        }
+    }
+
     async function updateRolePermissions(roleName: string, perms: RolePermissions): Promise<UpdateRolePermissionsResponse> {
         try {
             if (!houseTeamId) throw new Error("Not in a house");
@@ -335,7 +375,7 @@ export function HouseProvider(props: ProviderProps) {
         try {
             if (!user) throw new Error("You must be logged in to join a house");
             if (house) throw new Error("You are already in a house");
-            const cleanCode = code.replace(/-/g, '').trim();
+            const cleanCode = code.replace(/-/g, '').trim().toLowerCase();
             if (!cleanCode) throw new Error("Invalid code");
 
             console.log('[joinHouseByCode] calling function', JOIN_HOUSE_FUNCTION_ID, 'with teamId', cleanCode);
@@ -364,8 +404,25 @@ export function HouseProvider(props: ProviderProps) {
 
             if (!result.success) throw new Error(result.error ?? 'Could not join house');
 
-            // Refresh house state so the app reflects the new membership
-            await refreshHouse();
+            // Do NOT use refreshHouse() here — it calls team.list() which may not yet
+            // reflect the new membership due to Appwrite propagation delay.
+            // Instead, load the house directly by teamId (which we already know).
+            const houseTeam = await team.get({ teamId: cleanCode });
+            const houseMembers = await team.listMemberships({
+                teamId: cleanCode,
+                queries: [Query.equal('userId', user.$id)],
+            });
+            if (houseMembers.total === 0) {
+                // Membership not visible yet — fall back to refreshHouse with a short delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                await refreshHouse();
+            } else {
+                setHouse(houseMembers.memberships[0]);
+                setHouseTeamId(cleanCode);
+                applyPrefs(houseTeam.prefs);
+                const allMembers = await team.listMemberships({ teamId: cleanCode });
+                setMembers(allMembers.memberships);
+            }
             return { data: {}, error: undefined };
         } catch (error) {
             console.log('[joinHouseByCode] error:', error);
@@ -423,6 +480,7 @@ export function HouseProvider(props: ProviderProps) {
             joinHouseByCode,
             updateRolePermissions,
             updateRoleOrder,
+            transferOwnership,
             house,
             houseTeamId,
             members,

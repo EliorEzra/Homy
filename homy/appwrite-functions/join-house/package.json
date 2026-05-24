@@ -1,8 +1,7 @@
 {
   "name": "join-house",
   "version": "1.0.0",
+  "description": "Appwrite function to join a house by invite code",
   "main": "index.js",
-  "dependencies": {
-    "node-appwrite": "^12.0.0"
-  }
+  "dependencies": {}
 }

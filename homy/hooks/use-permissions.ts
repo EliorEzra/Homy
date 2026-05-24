@@ -35,7 +35,13 @@ export function usePermissions() {
 
   function getTabPerm(tab: TabKey): TabPermission {
     if (isOwner) return DEFAULT_TAB_PERMISSION;
-    if (!myRole) return DEFAULT_TAB_PERMISSION; // no role → default all-allowed
+    if (!myRole) {
+      // If the house has no roles configured at all, allow everything (system not active).
+      // If roles exist but this member has none yet, deny everything until owner assigns a role.
+      return houseRoles.length === 0
+        ? DEFAULT_TAB_PERMISSION
+        : { canCreate: false, canEdit: false, canDelete: false };
+    }
     return rolePermissions[myRole]?.[tab] ?? DEFAULT_TAB_PERMISSION;
   }
 

@@ -16,7 +16,7 @@ import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
-  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members, changeUserRoles, removeMember, refreshMembers, houseRoles, roleOrder, rolePermissions, updateRolePermissions, updateRoleOrder } = useHouse();
+  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members, changeUserRoles, removeMember, refreshMembers, houseRoles, roleOrder, rolePermissions, updateRolePermissions, updateRoleOrder, transferOwnership } = useHouse();
   const colorScheme = useColorScheme();
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
@@ -100,6 +100,25 @@ export default function SettingsScreen() {
           onPress: async () => {
             const { error } = await removeMember(member.$id);
             if (error) Alert.alert('Error', error.message);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleTransferOwnership = (member: Models.Membership) => {
+    const name = member.userName || member.userEmail?.split('@')[0] || 'this member';
+    Alert.alert(
+      'Transfer Ownership',
+      `Make ${name} the new owner? You will become a regular member and can leave the house without closing it.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Transfer',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await transferOwnership(member.$id);
+            if (error) Alert.alert('Error', error.message ?? 'Could not transfer ownership.');
           },
         },
       ]
@@ -319,6 +338,9 @@ export default function SettingsScreen() {
                 </View>
                 {isOwner && !memberIsOwner && (
                   <View style={styles.memberActions}>
+                    <Pressable onPress={() => handleTransferOwnership(member)} hitSlop={8} style={[styles.iconBtn, { backgroundColor: '#e0a50020' }]}>
+                      <Crown size={14} color="#e0a500" />
+                    </Pressable>
                     <Pressable onPress={() => openRoleEdit(member)} hitSlop={8} style={[styles.iconBtn, { backgroundColor: `${primaryColor}15` }]}>
                       <Pencil size={14} color={primaryColor} />
                     </Pressable>

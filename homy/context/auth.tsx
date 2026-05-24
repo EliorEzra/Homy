@@ -106,6 +106,9 @@ export function AuthProvider(props: ProviderProps) {
 
   const login = async (email: string, password: string): Promise<SignInResponse> => {
     try {
+      // If a stale session exists (e.g. startup network blip caused auth null),
+      // delete it before creating a new one to avoid "session already active" error.
+      try { await account.deleteSession('current'); } catch (_) {}
       await account.createEmailPasswordSession({ email, password });
       const fetchedUser = await account.get();
       if (fetchedUser.emailVerification) {
