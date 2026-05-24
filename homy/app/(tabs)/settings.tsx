@@ -52,6 +52,9 @@ export default function SettingsScreen() {
 
   const isOwner = house?.roles?.includes('owner') ?? false;
 
+  // Prefer explicit roleOrder; fall back to houseRoles insertion order
+  const effectiveOrder = roleOrder.length > 0 ? roleOrder : houseRoles;
+
   const handleCopyCode = async () => {
     if (!houseTeamId) return;
     await Clipboard.setStringAsync(houseTeamId);
@@ -166,18 +169,12 @@ export default function SettingsScreen() {
     else setPermEditRole(null);
   };
 
-  const moveRoleUp = async (index: number) => {
-    if (index === 0) return;
-    const newOrder = [...roleOrder];
-    [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-    const { error } = await updateRoleOrder(newOrder);
-    if (error) Alert.alert('Error', error.message);
-  };
-
-  const moveRoleDown = async (index: number) => {
-    if (index === roleOrder.length - 1) return;
-    const newOrder = [...roleOrder];
-    [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+  /** Move a role up (-1) or down (+1) in the hierarchy order. */
+  const moveRole = async (index: number, dir: -1 | 1) => {
+    const next = index + dir;
+    if (next < 0 || next >= effectiveOrder.length) return;
+    const newOrder = [...effectiveOrder];
+    [newOrder[index], newOrder[next]] = [newOrder[next], newOrder[index]];
     const { error } = await updateRoleOrder(newOrder);
     if (error) Alert.alert('Error', error.message);
   };
@@ -375,12 +372,12 @@ export default function SettingsScreen() {
                   HIERARCHY (top = most authority)
                 </ThemedText>
               </View>
-              {(roleOrder.length > 0 ? roleOrder : houseRoles).map((role, idx) => (
+              {effectiveOrder.map((role, idx) => (
                 <View
                   key={role}
                   style={[
                     styles.permRoleRow,
-                    idx < (roleOrder.length > 0 ? roleOrder : houseRoles).length - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor },
+                    idx < effectiveOrder.length - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor },
                   ]}
                 >
                   <View style={[styles.rankBadge, { backgroundColor: `${primaryColor}20` }]}>
@@ -389,16 +386,16 @@ export default function SettingsScreen() {
                   <ThemedText style={[styles.permRoleName, { flex: 1 }]}>{role}</ThemedText>
                   <View style={styles.permRoleActions}>
                     <Pressable
-                      onPress={() => moveRoleUp(idx)}
+                      onPress={() => moveRole(idx, -1)}
                       disabled={idx === 0}
                       style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === 0 ? 0.3 : 1 }]}
                     >
                       <ChevronUp size={14} color={primaryColor} />
                     </Pressable>
                     <Pressable
-                      onPress={() => moveRoleDown(idx)}
-                      disabled={idx === (roleOrder.length > 0 ? roleOrder : houseRoles).length - 1}
-                      style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === (roleOrder.length > 0 ? roleOrder : houseRoles).length - 1 ? 0.3 : 1 }]}
+                      onPress={() => moveRole(idx, 1)}
+                      disabled={idx === effectiveOrder.length - 1}
+                      style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === effectiveOrder.length - 1 ? 0.3 : 1 }]}
                     >
                       <ChevronDown size={14} color={primaryColor} />
                     </Pressable>
@@ -486,10 +483,9 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.modalBody}>
               <ThemedText style={[styles.modalHint, { color: mutedColor }]}>
-                {roleEditMember ? (() => {
-                  const isMe2 = roleEditMember.userId === user?.$id;
-                  return isMe2 ? 'Your role' : (roleEditMember.userName || roleEditMember.userEmail?.split('@')[0] || 'This member');
-                })() : ''}
+                {roleEditMember?.userId === user?.$id
+                  ? 'Your role'
+                  : roleEditMember?.userName || roleEditMember?.userEmail?.split('@')[0] || 'This member'}
               </ThemedText>
 
               {houseRoles.length === 0 ? (

@@ -5,13 +5,17 @@ import { DEFAULT_TAB_PERMISSION, TabPermission } from '@/context/db_models';
 export type TabKey = 'tasks' | 'shop' | 'finances' | 'calendar';
 
 /**
- * Returns permission helpers for the current user.
+ * Returns permission helpers scoped to the current user.
  *
- * Hierarchy rule: roleOrder[0] = highest authority. A user can only
- * edit/delete items created by someone with equal or lower authority
- * (equal or higher index in roleOrder).
+ * ## Role hierarchy
+ * `roleOrder[0]` = highest authority (e.g. "admin"), last index = lowest.
+ * A user can edit/delete items whose creator has equal or lower authority
+ * (i.e. creator's index >= actor's index).
  *
- * Owner always bypasses all checks.
+ * ## Special cases
+ * - **Owner** bypasses all checks — always returns true.
+ * - **No roles configured** — everyone gets full access (system not active).
+ * - **Roles exist but member has no role** — denied everything until owner assigns one.
  */
 export function usePermissions() {
   const { house, members, houseRoles, roleOrder, rolePermissions } = useHouse();
@@ -19,25 +23,34 @@ export function usePermissions() {
 
   const isOwner = (house?.roles as string[] | undefined)?.includes('owner') ?? false;
 
-  // Current user's non-owner role
   const myMembership = members.find(m => m.userId === user?.$id);
   const myRole: string | null =
     ((myMembership?.roles as string[] | undefined) ?? []).find(r => r !== 'owner') ?? null;
 
-  // Effective order: prefer explicit roleOrder, fall back to houseRoles array order
+  // Prefer explicit roleOrder; fall back to houseRoles insertion order
   const effectiveOrder = roleOrder.length > 0 ? roleOrder : houseRoles;
 
-  // Lower index = higher authority. No role / unrecognised role = lowest rank.
+  // Lower index = higher authority. Unknown / no role = one beyond last (lowest).
   const myRank: number =
     myRole !== null && effectiveOrder.includes(myRole)
       ? effectiveOrder.indexOf(myRole)
       : effectiveOrder.length;
 
+  /** Resolve the rank of any userId (for hierarchy comparison). */
+  function rankOf(userId: string): number {
+    if (!userId) return effectiveOrder.length;
+    const m = members.find(mem => mem.userId === userId);
+    const role = ((m?.roles as string[] | undefined) ?? []).find(r => r !== 'owner') ?? null;
+    return role !== null && effectiveOrder.includes(role)
+      ? effectiveOrder.indexOf(role)
+      : effectiveOrder.length;
+  }
+
+  /** Get the effective tab permission for the current user. */
   function getTabPerm(tab: TabKey): TabPermission {
     if (isOwner) return DEFAULT_TAB_PERMISSION;
     if (!myRole) {
-      // If the house has no roles configured at all, allow everything (system not active).
-      // If roles exist but this member has none yet, deny everything until owner assigns a role.
+      // No roles configured → permissive default; roles exist but no role assigned → locked
       return houseRoles.length === 0
         ? DEFAULT_TAB_PERMISSION
         : { canCreate: false, canEdit: false, canDelete: false };
@@ -45,19 +58,7 @@ export function usePermissions() {
     return rolePermissions[myRole]?.[tab] ?? DEFAULT_TAB_PERMISSION;
   }
 
-  function _creatorRank(creatorUserId: string): number {
-    if (!creatorUserId) return effectiveOrder.length; // unknown creator = lowest
-    const m = members.find(mem => mem.userId === creatorUserId);
-    const creatorRole: string | null =
-      ((m?.roles as string[] | undefined) ?? []).find(r => r !== 'owner') ?? null;
-    return creatorRole !== null && effectiveOrder.includes(creatorRole)
-      ? effectiveOrder.indexOf(creatorRole)
-      : effectiveOrder.length;
-  }
-
-  /**
-   * Can the current user add new items in this tab?
-   */
+  /** Can the current user add new items in this tab? */
   function canCreate(tab: TabKey): boolean {
     if (isOwner) return true;
     return getTabPerm(tab).canCreate;
@@ -65,23 +66,25 @@ export function usePermissions() {
 
   /**
    * Can the current user edit an item in this tab?
-   * @param creatorUserId  The userId stored on the DB row (may be empty string for legacy rows).
+   * @param creatorUserId  The `userId` stored on the DB row.
    */
   function canEdit(tab: TabKey, creatorUserId: string): boolean {
     if (isOwner) return true;
     if (!getTabPerm(tab).canEdit) return false;
-    if (!creatorUserId || creatorUserId === user?.$id) return true; // own item or unknown
-    return _creatorRank(creatorUserId) >= myRank; // creator is equal or lower authority
+    // Own items are always editable; unknown creator → allow
+    if (!creatorUserId || creatorUserId === user?.$id) return true;
+    return rankOf(creatorUserId) >= myRank;
   }
 
   /**
    * Can the current user delete an item in this tab?
+   * @param creatorUserId  The `userId` stored on the DB row.
    */
   function canDelete(tab: TabKey, creatorUserId: string): boolean {
     if (isOwner) return true;
     if (!getTabPerm(tab).canDelete) return false;
     if (!creatorUserId || creatorUserId === user?.$id) return true;
-    return _creatorRank(creatorUserId) >= myRank;
+    return rankOf(creatorUserId) >= myRank;
   }
 
   return { canCreate, canEdit, canDelete, isOwner };
