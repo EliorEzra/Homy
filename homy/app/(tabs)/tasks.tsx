@@ -31,27 +31,27 @@ function rowToTask(row: Models.Row) {
   };
 }
 
-const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
 export default function TasksScreen() {
   const { tasks, addTask, updateTask, deleteTask } = useTasks();
   const { members, house } = useHouse();
   const { user } = useAuth();
   const [formVisible, setFormVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [whoFilter, setWhoFilter] = useState<'all' | 'mine'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const borderColor = useThemeColor({}, 'inputBorder');
 
-  const isOwner = house?.roles?.includes('owner') ?? false;
   const { canCreate, canEdit, canDelete } = usePermissions();
 
-  const uiTasks = (tasks ?? [])
-    .map(rowToTask)
-    // Members only see tasks assigned to them or to nobody; owners see everything
-    .filter(t => isOwner || t.assignedTo.length === 0 || t.assignedTo.includes(user?.$id ?? ''));
+  const uiTasks = (tasks ?? []).map(rowToTask);
 
-  const filtered = uiTasks.filter(t => filter === "active" ? !t.completed : filter === "completed" ? t.completed : true);
+  const filtered = uiTasks
+    .filter(t => {
+      if (whoFilter === 'mine') return t.assignedTo.length === 0 || t.assignedTo.includes(user?.$id ?? '');
+      return true; // "all" — show everything
+    })
+    .filter(t => statusFilter === 'active' ? !t.completed : statusFilter === 'completed' ? t.completed : true);
 
   // Build display label for a single userId
   const getMemberLabel = (userId: string) => {
@@ -84,11 +84,20 @@ export default function TasksScreen() {
       <ThemedView style={styles.header}><ThemedText type="title">Tasks</ThemedText></ThemedView>
 
       <View style={styles.filterRow}>
-        {(["all", "active", "completed"] as const).map(f => (
-          <Pressable key={f} onPress={() => setFilter(f)}
-            style={[styles.filterChip, { borderColor }, filter === f && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
-            <ThemedText style={[styles.filterText, filter === f && styles.filterTextActive]}>
-              {f === "all" ? "All" : f === "active" ? "Active" : "Completed"}
+        {(['all', 'mine'] as const).map(f => (
+          <Pressable key={f} onPress={() => setWhoFilter(f)}
+            style={[styles.filterChip, { borderColor }, whoFilter === f && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
+            <ThemedText style={[styles.filterText, whoFilter === f && styles.filterTextActive]}>
+              {f === 'all' ? 'All' : 'Mine'}
+            </ThemedText>
+          </Pressable>
+        ))}
+        <View style={styles.filterDivider} />
+        {(['all', 'active', 'completed'] as const).map(f => (
+          <Pressable key={f} onPress={() => setStatusFilter(f)}
+            style={[styles.filterChip, { borderColor }, statusFilter === f && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
+            <ThemedText style={[styles.filterText, statusFilter === f && styles.filterTextActive]}>
+              {f === 'all' ? 'All' : f === 'active' ? 'Active' : 'Done'}
             </ThemedText>
           </Pressable>
         ))}
@@ -96,10 +105,10 @@ export default function TasksScreen() {
 
       {filtered.length === 0 ? (
         <ThemedEmptyState
-          title={filter === "all" ? "No Tasks Yet" : filter === "active" ? "All Tasks Complete" : "No Completed Tasks"}
-          description={filter === "all" ? "Create your first task to get started" : "Keep up the great work!"}
+          title={statusFilter === 'completed' ? "No Completed Tasks" : statusFilter === 'active' ? "All Tasks Complete" : whoFilter === 'mine' ? "No Tasks For You" : "No Tasks Yet"}
+          description={statusFilter === 'all' && whoFilter === 'all' ? "Create your first task to get started" : "Keep up the great work!"}
           icon={<CheckCircle size={64} color="#ff5c02" opacity={0.5} />}
-          action={filter === "all" && canCreate('tasks') ? <ThemedButton title="+ Create Task" onPress={() => { setEditingId(null); setFormVisible(true); }} size="md" /> : undefined}
+          action={statusFilter === 'all' && whoFilter === 'all' && canCreate('tasks') ? <ThemedButton title="+ Create Task" onPress={() => { setEditingId(null); setFormVisible(true); }} size="md" /> : undefined}
         />
       ) : (
         <FlatList
@@ -115,7 +124,7 @@ export default function TasksScreen() {
             />
           )}
           contentContainerStyle={styles.list}
-          scrollEnabled={false}
+          style={styles.listFlex}
         />
       )}
 
@@ -141,11 +150,13 @@ export default function TasksScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: spacing.lg },
   header: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
-  filterRow: { flexDirection: 'row', paddingHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm },
+  filterRow: { flexDirection: 'row', paddingHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm, alignItems: 'center' },
+  filterDivider: { width: 1, height: 20, backgroundColor: '#ccc', marginHorizontal: spacing.xs },
   filterChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 20, borderWidth: 1 },
   filterText: { fontSize: 12, fontWeight: '600' },
   filterTextActive: { color: 'white' },
-  list: { paddingHorizontal: spacing.lg },
+  listFlex: { flex: 1 },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: 80 },
   taskCard: { marginHorizontal: 0 },
   fab: { position: 'absolute', bottom: spacing.lg, right: spacing.lg, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4 },
 });

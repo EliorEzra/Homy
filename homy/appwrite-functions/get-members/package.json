@@ -1,0 +1,7 @@
+{
+  "name": "get-members",
+  "version": "1.0.0",
+  "description": "Returns enriched team memberships (with real userName/userEmail)",
+  "main": "index.js",
+  "dependencies": {}
+}

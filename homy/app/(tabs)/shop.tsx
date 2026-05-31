@@ -168,7 +168,7 @@ export default function ShopScreen() {
             </ThemedCard>
           )}
           contentContainerStyle={styles.list}
-          scrollEnabled={false}
+          style={styles.listFlex}
         />
       )}
 
@@ -199,7 +199,8 @@ const styles = StyleSheet.create({
   addActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   addBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, borderRadius: 8, borderWidth: 1 },
   addBtnText: { fontSize: 14, fontWeight: '600' },
-  list: { paddingHorizontal: spacing.lg },
+  listFlex: { flex: 1 },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: 80 },
   itemCard: { marginVertical: spacing.sm / 2, flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   checkedCard: { opacity: 0.55 },
   itemLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },

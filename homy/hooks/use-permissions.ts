@@ -18,7 +18,7 @@ export type TabKey = 'tasks' | 'shop' | 'finances' | 'calendar';
  * - **Roles exist but member has no role** — denied everything until owner assigns one.
  */
 export function usePermissions() {
-  const { house, members, houseRoles, roleOrder, rolePermissions } = useHouse();
+  const { house, members, houseRoles, roleOrder, rolePermissions, hierarchyEnabled } = useHouse();
   const { user } = useAuth();
 
   const isOwner = (house?.roles as string[] | undefined)?.includes('owner') ?? false;
@@ -73,6 +73,8 @@ export function usePermissions() {
     if (!getTabPerm(tab).canEdit) return false;
     // Own items are always editable; unknown creator → allow
     if (!creatorUserId || creatorUserId === user?.$id) return true;
+    // With hierarchy off, canEdit applies to all items regardless of creator rank
+    if (!hierarchyEnabled) return true;
     return rankOf(creatorUserId) >= myRank;
   }
 
@@ -84,6 +86,7 @@ export function usePermissions() {
     if (isOwner) return true;
     if (!getTabPerm(tab).canDelete) return false;
     if (!creatorUserId || creatorUserId === user?.$id) return true;
+    if (!hierarchyEnabled) return true;
     return rankOf(creatorUserId) >= myRank;
   }
 

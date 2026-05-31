@@ -12,11 +12,11 @@ import { useColorScheme } from 'react-native';
 import { useState } from 'react';
 import { Models } from 'react-native-appwrite';
 import { RolePermissions, DEFAULT_ROLE_PERMISSIONS, DEFAULT_TAB_PERMISSION, TabPermission } from '@/context/db_models';
-import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X, Mail, Copy, Check, Pencil, RefreshCw, UserMinus, ShieldCheck, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X, Mail, Copy, Check, Pencil, RefreshCw, UserMinus, ShieldCheck, ChevronUp, ChevronDown, Plus } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
-  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members, changeUserRoles, removeMember, refreshMembers, houseRoles, roleOrder, rolePermissions, updateRolePermissions, updateRoleOrder, transferOwnership } = useHouse();
+  const { house, houseTeamId, leaveHouse, deleteHouse, addUser, members, changeUserRoles, removeMember, refreshMembers, houseRoles, roleOrder, rolePermissions, hierarchyEnabled, updateRolePermissions, updateRoleOrder, addRole, removeRole, updateHierarchyEnabled, transferOwnership } = useHouse();
   const colorScheme = useColorScheme();
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
@@ -39,6 +39,10 @@ export default function SettingsScreen() {
   const [permEditRole, setPermEditRole] = useState<string | null>(null);
   const [editingPerms, setEditingPerms] = useState<RolePermissions>(DEFAULT_ROLE_PERMISSIONS);
   const [savingPerms, setSavingPerms] = useState(false);
+
+  // Add role state
+  const [newRoleName, setNewRoleName] = useState('');
+  const [addingRole, setAddingRole] = useState(false);
 
   // Format teamId as readable groups: e.g. ABCDE-FGHIJ-KLMNO-PQRST
   const houseCode = houseTeamId
@@ -177,6 +181,34 @@ export default function SettingsScreen() {
     [newOrder[index], newOrder[next]] = [newOrder[next], newOrder[index]];
     const { error } = await updateRoleOrder(newOrder);
     if (error) Alert.alert('Error', error.message);
+  };
+
+  const handleAddRole = async () => {
+    const trimmed = newRoleName.trim();
+    if (!trimmed) return;
+    setAddingRole(true);
+    const { error } = await addRole(trimmed);
+    setAddingRole(false);
+    if (error) Alert.alert('Error', error.message);
+    else setNewRoleName('');
+  };
+
+  const handleRemoveRole = (role: string) => {
+    Alert.alert(
+      'Remove Role',
+      `Remove the "${role}" role? Members with this role will become unassigned.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await removeRole(role);
+            if (error) Alert.alert('Error', error.message);
+          },
+        },
+      ]
+    );
   };
 
   const handleLeaveHouse = () => {
@@ -351,8 +383,8 @@ export default function SettingsScreen() {
           })}
         </ThemedCard>
 
-        {/* Role Permissions — owner only, only when roles exist */}
-        {isOwner && houseRoles.length > 0 && (
+        {/* Role Permissions — owner only */}
+        {isOwner && (
           <>
             <ThemedDivider style={styles.divider} />
             <View style={styles.sectionHeader}>
@@ -361,54 +393,111 @@ export default function SettingsScreen() {
                 <ThemedText style={styles.sectionTitle}>Role Permissions</ThemedText>
               </View>
               <ThemedText style={[styles.permHint, { color: mutedColor }]}>
-                Configure what each role can do. Higher roles in the list can also modify lower roles' items.
+                Configure what each role can do in each tab.
               </ThemedText>
             </View>
 
-            {/* Hierarchy order */}
+            {/* Hierarchy toggle */}
             <ThemedCard variant="outlined" style={styles.settingsCard}>
-              <View style={[styles.settingRow, { paddingBottom: spacing.xs }]}>
-                <ThemedText style={[styles.settingLabel, { fontSize: 13, opacity: 0.6 }]}>
-                  HIERARCHY (top = most authority)
-                </ThemedText>
-              </View>
-              {effectiveOrder.map((role, idx) => (
-                <View
-                  key={role}
-                  style={[
-                    styles.permRoleRow,
-                    idx < effectiveOrder.length - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor },
-                  ]}
-                >
-                  <View style={[styles.rankBadge, { backgroundColor: `${primaryColor}20` }]}>
-                    <ThemedText style={[styles.rankBadgeText, { color: primaryColor }]}>{idx + 1}</ThemedText>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <View style={[styles.settingIcon, { backgroundColor: `${primaryColor}20` }]}>
+                    <ShieldCheck size={18} color={primaryColor} />
                   </View>
-                  <ThemedText style={[styles.permRoleName, { flex: 1 }]}>{role}</ThemedText>
-                  <View style={styles.permRoleActions}>
-                    <Pressable
-                      onPress={() => moveRole(idx, -1)}
-                      disabled={idx === 0}
-                      style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === 0 ? 0.3 : 1 }]}
-                    >
-                      <ChevronUp size={14} color={primaryColor} />
-                    </Pressable>
-                    <Pressable
-                      onPress={() => moveRole(idx, 1)}
-                      disabled={idx === effectiveOrder.length - 1}
-                      style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === effectiveOrder.length - 1 ? 0.3 : 1 }]}
-                    >
-                      <ChevronDown size={14} color={primaryColor} />
-                    </Pressable>
-                    <Pressable
-                      onPress={() => openPermEdit(role)}
-                      style={[styles.iconBtn, { backgroundColor: `${primaryColor}15` }]}
-                    >
-                      <Pencil size={14} color={primaryColor} />
-                    </Pressable>
+                  <View>
+                    <ThemedText style={styles.settingLabel}>Use Role Hierarchy</ThemedText>
+                    <ThemedText style={[styles.settingSubtitle, { color: mutedColor }]}>
+                      Higher roles can edit/delete lower roles' items
+                    </ThemedText>
                   </View>
                 </View>
-              ))}
+                <Switch
+                  value={hierarchyEnabled}
+                  onValueChange={async (val) => {
+                    const { error } = await updateHierarchyEnabled(val);
+                    if (error) Alert.alert('Error', error.message);
+                  }}
+                  trackColor={{ false: '#ccc', true: primaryColor }}
+                  thumbColor="white"
+                />
+              </View>
             </ThemedCard>
+
+            {/* Add role */}
+            <ThemedCard variant="outlined" style={[styles.settingsCard, { marginTop: spacing.sm }]}>
+              <View style={[styles.settingRow, { gap: spacing.sm }]}>
+                <TextInput
+                  style={[styles.roleNameInput, { borderColor, backgroundColor: inputBg, color: textColor, flex: 1 }]}
+                  placeholder="New role name…"
+                  placeholderTextColor={mutedColor}
+                  value={newRoleName}
+                  onChangeText={setNewRoleName}
+                  onSubmitEditing={handleAddRole}
+                  returnKeyType="done"
+                />
+                <Pressable
+                  onPress={handleAddRole}
+                  disabled={addingRole || !newRoleName.trim()}
+                  style={[styles.iconBtn, { backgroundColor: primaryColor, opacity: !newRoleName.trim() ? 0.4 : 1, width: 36, height: 36 }]}
+                >
+                  <Plus size={16} color="white" strokeWidth={3} />
+                </Pressable>
+              </View>
+            </ThemedCard>
+
+            {/* Role list */}
+            {effectiveOrder.length > 0 && (
+              <ThemedCard variant="outlined" style={[styles.settingsCard, { marginTop: spacing.sm }]}>
+                {effectiveOrder.map((role, idx) => (
+                  <View
+                    key={role}
+                    style={[
+                      styles.permRoleRow,
+                      idx < effectiveOrder.length - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor },
+                    ]}
+                  >
+                    {hierarchyEnabled && (
+                      <View style={[styles.rankBadge, { backgroundColor: `${primaryColor}20` }]}>
+                        <ThemedText style={[styles.rankBadgeText, { color: primaryColor }]}>{idx + 1}</ThemedText>
+                      </View>
+                    )}
+                    <ThemedText style={[styles.permRoleName, { flex: 1 }]}>{role}</ThemedText>
+                    <View style={styles.permRoleActions}>
+                      {hierarchyEnabled && (
+                        <>
+                          <Pressable
+                            onPress={() => moveRole(idx, -1)}
+                            disabled={idx === 0}
+                            style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === 0 ? 0.3 : 1 }]}
+                          >
+                            <ChevronUp size={14} color={primaryColor} />
+                          </Pressable>
+                          <Pressable
+                            onPress={() => moveRole(idx, 1)}
+                            disabled={idx === effectiveOrder.length - 1}
+                            style={[styles.iconBtn, { backgroundColor: `${primaryColor}15`, opacity: idx === effectiveOrder.length - 1 ? 0.3 : 1 }]}
+                          >
+                            <ChevronDown size={14} color={primaryColor} />
+                          </Pressable>
+                        </>
+                      )}
+                      <Pressable
+                        onPress={() => openPermEdit(role)}
+                        style={[styles.iconBtn, { backgroundColor: `${primaryColor}15` }]}
+                      >
+                        <Pencil size={14} color={primaryColor} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleRemoveRole(role)}
+                        style={[styles.iconBtn, { backgroundColor: '#ff374815' }]}
+                      >
+                        <X size={14} color="#ff3748" />
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </ThemedCard>
+            )}
           </>
         )}
 
@@ -759,6 +848,7 @@ const styles = StyleSheet.create({
   divider: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
   permHint: { fontSize: 12, lineHeight: 17, marginTop: spacing.xs },
   permRoleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
+  roleNameInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, fontSize: 14 },
   rankBadge: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   rankBadgeText: { fontSize: 11, fontWeight: '800' },
   permRoleName: { fontWeight: '600', fontSize: 14 },

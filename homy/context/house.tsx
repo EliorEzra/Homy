@@ -25,6 +25,9 @@ interface HouseContextValue {
   transferOwnership: (newOwnerMembershipId: string) => Promise<HouseResponse>;
   updateRolePermissions: (roleName: string, perms: RolePermissions) => Promise<HouseResponse>;
   updateRoleOrder: (order: string[]) => Promise<HouseResponse>;
+  addRole: (name: string) => Promise<HouseResponse>;
+  removeRole: (name: string) => Promise<HouseResponse>;
+  updateHierarchyEnabled: (enabled: boolean) => Promise<HouseResponse>;
   house: Models.Membership | null;
   houseTeamId: string | null;
   members: Models.Membership[];
@@ -34,6 +37,8 @@ interface HouseContextValue {
   roleOrder: string[];
   /** Per-role tab permissions, keyed by role name. */
   rolePermissions: Record<string, RolePermissions>;
+  /** When true, canEdit/canDelete only apply to items from equal or lower ranked creators. */
+  hierarchyEnabled: boolean;
 }
 
 interface ProviderProps {
@@ -42,9 +47,36 @@ interface ProviderProps {
 
 const HouseContext = createContext<HouseContextValue | undefined>(undefined);
 
-// Appwrite Function ID — set EXPO_PUBLIC_JOIN_HOUSE_FUNCTION_ID in your .env
+// Appwrite Function IDs — override via .env if needed
 const JOIN_HOUSE_FUNCTION_ID =
   process.env.EXPO_PUBLIC_JOIN_HOUSE_FUNCTION_ID ?? 'join-house';
+const GET_MEMBERS_FUNCTION_ID =
+  process.env.EXPO_PUBLIC_GET_MEMBERS_FUNCTION_ID ?? 'get-members';
+
+/**
+ * Fetch enriched memberships (with real userName/userEmail) via the get-members
+ * Appwrite Function. Required because Appwrite 1.9 doesn't expose those fields
+ * on listMemberships for non-owner callers.
+ *
+ * Falls back to whatever raw memberships the client SDK can fetch if the
+ * function fails (e.g. not deployed yet) so the app keeps working.
+ */
+async function fetchEnrichedMembers(teamId: string): Promise<Models.Membership[]> {
+  try {
+    const exec = await functions.createExecution(
+      GET_MEMBERS_FUNCTION_ID,
+      JSON.stringify({ teamId }),
+      false
+    );
+    if (exec.status === 'completed') {
+      const result = JSON.parse(exec.responseBody);
+      if (result.success) return result.members as Models.Membership[];
+    }
+  } catch (_) {}
+  // Fallback: raw memberships (names may be missing for non-owners)
+  const res = await team.listMemberships({ teamId });
+  return res.memberships;
+}
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function HouseProvider({ children }: ProviderProps) {
@@ -55,6 +87,7 @@ export function HouseProvider({ children }: ProviderProps) {
   const [houseRoles, setHouseRoles] = useState<string[]>([]);
   const [roleOrder, setRoleOrder] = useState<string[]>([]);
   const [rolePermissions, setRolePermissions] = useState<Record<string, RolePermissions>>({});
+  const [hierarchyEnabled, setHierarchyEnabled] = useState(false);
 
   const { user } = useAuth();
 
@@ -89,6 +122,7 @@ export function HouseProvider({ children }: ProviderProps) {
     setHouseRoles(roles);
     setRoleOrder(prefs?.roleOrder ?? [...roles]);
     setRolePermissions(prefs?.rolePermissions ?? {});
+    setHierarchyEnabled(prefs?.hierarchyEnabled ?? false);
   }
 
   // ─── House loader ─────────────────────────────────────────────────────────
@@ -98,12 +132,12 @@ export function HouseProvider({ children }: ProviderProps) {
     const [houseTeam, ownMemberships, allMemberships] = await Promise.all([
       team.get({ teamId }),
       team.listMemberships({ teamId, queries: [Query.equal('userId', user!.$id)] }),
-      team.listMemberships({ teamId }),
+      fetchEnrichedMembers(teamId), // enriched names/emails via Appwrite Function
     ]);
     setHouse(ownMemberships.memberships[0] ?? null);
     setHouseTeamId(teamId);
     applyPrefs(houseTeam.prefs);
-    setMembers(allMemberships.memberships);
+    setMembers(allMemberships);
   }
 
   // ─── Fallback refresh ─────────────────────────────────────────────────────
@@ -122,8 +156,7 @@ export function HouseProvider({ children }: ProviderProps) {
   async function refreshMembers(): Promise<void> {
     if (!houseTeamId) return;
     try {
-      const res = await team.listMemberships({ teamId: houseTeamId });
-      setMembers(res.memberships);
+      setMembers(await fetchEnrichedMembers(houseTeamId));
     } catch (_) {}
   }
 
@@ -218,8 +251,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setHouse(response);
       setHouseTeamId(teamId);
       try {
-        const res = await team.listMemberships({ teamId });
-        setMembers(res.memberships);
+        setMembers(await fetchEnrichedMembers(teamId));
       } catch (_) {}
       return { data: {} };
     } catch (error) {
@@ -302,7 +334,7 @@ export function HouseProvider({ children }: ProviderProps) {
     try {
       if (!houseTeamId) throw new Error("Not in a house");
       const newPerms = { ...rolePermissions, [roleName]: perms };
-      await team.updatePrefs({ teamId: houseTeamId, prefs: { roles: houseRoles, roleOrder, rolePermissions: newPerms } });
+      await team.updatePrefs({ teamId: houseTeamId, prefs: { roles: houseRoles, roleOrder, rolePermissions: newPerms, hierarchyEnabled } });
       setRolePermissions(newPerms);
       return { data: {} };
     } catch (error) {
@@ -314,8 +346,56 @@ export function HouseProvider({ children }: ProviderProps) {
   async function updateRoleOrder(order: string[]): Promise<HouseResponse> {
     try {
       if (!houseTeamId) throw new Error("Not in a house");
-      await team.updatePrefs({ teamId: houseTeamId, prefs: { roles: houseRoles, roleOrder: order, rolePermissions } });
+      await team.updatePrefs({ teamId: houseTeamId, prefs: { roles: houseRoles, roleOrder: order, rolePermissions, hierarchyEnabled } });
       setRoleOrder(order);
+      return { data: {} };
+    } catch (error) {
+      return { error };
+    }
+  }
+
+  /** Add a new role to the house. Appends to houseRoles and roleOrder. */
+  async function addRole(name: string): Promise<HouseResponse> {
+    try {
+      if (!houseTeamId) throw new Error("Not in a house");
+      const trimmed = name.trim();
+      if (!trimmed) throw new Error("Role name cannot be empty");
+      if (houseRoles.includes(trimmed)) throw new Error(`Role "${trimmed}" already exists`);
+      const newRoles = [...houseRoles, trimmed];
+      const newOrder = [...roleOrder, trimmed];
+      await team.updatePrefs({ teamId: houseTeamId, prefs: { roles: newRoles, roleOrder: newOrder, rolePermissions, hierarchyEnabled } });
+      setHouseRoles(newRoles);
+      setRoleOrder(newOrder);
+      return { data: {} };
+    } catch (error) {
+      return { error };
+    }
+  }
+
+  /** Remove a role from the house. Cleans up houseRoles, roleOrder, and rolePermissions. */
+  async function removeRole(name: string): Promise<HouseResponse> {
+    try {
+      if (!houseTeamId) throw new Error("Not in a house");
+      const newRoles = houseRoles.filter(r => r !== name);
+      const newOrder = roleOrder.filter(r => r !== name);
+      const newPerms = { ...rolePermissions };
+      delete newPerms[name];
+      await team.updatePrefs({ teamId: houseTeamId, prefs: { roles: newRoles, roleOrder: newOrder, rolePermissions: newPerms, hierarchyEnabled } });
+      setHouseRoles(newRoles);
+      setRoleOrder(newOrder);
+      setRolePermissions(newPerms);
+      return { data: {} };
+    } catch (error) {
+      return { error };
+    }
+  }
+
+  /** Toggle whether the role hierarchy affects edit/delete permissions. */
+  async function updateHierarchyEnabled(enabled: boolean): Promise<HouseResponse> {
+    try {
+      if (!houseTeamId) throw new Error("Not in a house");
+      await team.updatePrefs({ teamId: houseTeamId, prefs: { roles: houseRoles, roleOrder, rolePermissions, hierarchyEnabled: enabled } });
+      setHierarchyEnabled(enabled);
       return { data: {} };
     } catch (error) {
       return { error };
@@ -379,7 +459,7 @@ export function HouseProvider({ children }: ProviderProps) {
 
   function clearHouseState() {
     setHouse(null); setHouseTeamId(null); setMembers([]);
-    setHouseRoles([]); setRoleOrder([]); setRolePermissions({});
+    setHouseRoles([]); setRoleOrder([]); setRolePermissions({}); setHierarchyEnabled(false);
   }
 
   // ─── Startup: load house from Appwrite ────────────────────────────────────
@@ -414,7 +494,8 @@ export function HouseProvider({ children }: ProviderProps) {
       createHouse, addUser, getUsers, changeUserRoles, removeMember,
       refreshMembers, acceptHouseInvite, leaveHouse, deleteHouse,
       joinHouseByCode, transferOwnership, updateRolePermissions, updateRoleOrder,
-      house, houseTeamId, members, houseRoles, roleOrder, rolePermissions,
+      addRole, removeRole, updateHierarchyEnabled,
+      house, houseTeamId, members, houseRoles, roleOrder, rolePermissions, hierarchyEnabled,
     }}>
       {children}
     </HouseContext.Provider>
