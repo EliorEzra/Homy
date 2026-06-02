@@ -74,19 +74,33 @@ export function AuthProvider(props: ProviderProps) {
 
   useEffect(() => {
     (async () => {
-      try {
-        const fetchedUser = await account.get();
-        console.log(fetchedUser);
+      // Retry up to 3 times with increasing delays to handle startup network blips
+      // (common on self-hosted Appwrite with dynamic DNS like dynv6).
+      let fetchedUser = null;
+      const delays = [0, 1000, 2500];
+      for (const delay of delays) {
+        try {
+          if (delay > 0) await new Promise(r => setTimeout(r, delay));
+          fetchedUser = await account.get();
+          break; // success
+        } catch (error: any) {
+          const isNetworkError = error?.message?.includes('Network request failed');
+          if (!isNetworkError || delay === delays[delays.length - 1]) {
+            // Non-network error, or all retries exhausted — give up
+            setAuth(null);
+            setAuthInitialized(true);
+            return;
+          }
+          // Network error and retries remain — keep trying
+        }
+      }
+      if (fetchedUser) {
         if (fetchedUser.emailVerification) {
           setAuth(fetchedUser);
         } else {
-          console.log("Email not verified yet");
           setUnverifiedUser(fetchedUser);
           setAuth(null);
         }
-      } catch (error) {
-        console.log("error", error);
-        setAuth(null);
       }
       setAuthInitialized(true);
     })();
@@ -106,6 +120,11 @@ export function AuthProvider(props: ProviderProps) {
 
   const login = async (email: string, password: string): Promise<SignInResponse> => {
     try {
+      // Appwrite rejects createEmailPasswordSession if a session already exists.
+      // This can happen when a startup network blip causes account.get() to fail,
+      // setting auth to null even though a valid session cookie is still present.
+      // Silently deleting the current session first makes login always safe to call.
+      try { await account.deleteSession('current'); } catch (_) {}
       await account.createEmailPasswordSession({ email, password });
       const fetchedUser = await account.get();
       if (fetchedUser.emailVerification) {

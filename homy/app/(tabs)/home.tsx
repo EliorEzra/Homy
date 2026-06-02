@@ -1,11 +1,7 @@
-import { Alert, StyleSheet, View, ScrollView, Pressable } from 'react-native';
-import { useRef } from 'react';
+import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
-import { ThemedInput } from '@/components/themed-input';
-import { ThemedButton } from '@/components/themed-button';
-import { ThemedDivider } from '@/components/themed-divider';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '../../context/auth';
 import { useHouse } from '@/context/house';
@@ -13,7 +9,7 @@ import { useTasks } from '@/context/tasks_db';
 import { useEvents } from '@/context/events_db';
 import { spacing } from '@/theme/theme';
 import { useRouter } from 'expo-router';
-import { Calendar, CheckCircle, ShoppingCart, DollarSign, ArrowRight, Users } from 'lucide-react-native';
+import { Calendar, CheckCircle, ShoppingCart, DollarSign, ArrowRight } from 'lucide-react-native';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ADJECTIVES = ['gentle', 'bright', 'lovely', 'fine', 'great', 'wonderful', 'beautiful'];
@@ -30,9 +26,10 @@ function QuickCard({ label, icon, color, onPress }: { label: string; icon: React
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { addUser } = useHouse();
+  const { house } = useHouse();
   const { tasks } = useTasks();
   const { events } = useEvents();
+  const isOwner = house?.roles?.includes('owner') ?? false;
   const router = useRouter();
 
   const todayStr = (() => {
@@ -45,11 +42,18 @@ export default function HomeScreen() {
     const d = new Date(t.due_date as string);
     if (isNaN(d.getTime())) return false;
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return ds === todayStr;
+    if (ds !== todayStr) return false;
+    // Apply the same visibility rule as the Tasks tab
+    const assignedTo = t.assigned_to ? (t.assigned_to as string).split(',').filter(Boolean) : [];
+    return isOwner || assignedTo.length === 0 || assignedTo.includes(user?.$id ?? '');
   });
 
-  const eventsToday = (events ?? []).filter(e => e.date === todayStr);
-  const emailRef = useRef("");
+  const eventsToday = (events ?? []).filter(e => {
+    if (e.date !== todayStr) return false;
+    if (isOwner) return true;
+    const a = e.assigned_to ? (e.assigned_to as string).split(',').filter(Boolean) : [];
+    return a.length === 0 || a.includes(user?.$id ?? '');
+  });
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
 
@@ -122,36 +126,6 @@ export default function HomeScreen() {
           </ThemedCard>
         ))}
 
-        <ThemedDivider style={styles.divider} />
-
-        {/* Household Invite */}
-        <View style={styles.sectionHeader}>
-          <ThemedText style={styles.sectionTitle}>Invite to Household</ThemedText>
-        </View>
-        <ThemedCard variant="elevated" style={styles.inviteCard}>
-          <View style={styles.inviteRow}>
-            <Users size={18} color={primaryColor} />
-            <ThemedText style={styles.inviteLabel}>Add a family member by email</ThemedText>
-          </View>
-          <ThemedInput
-            type="email"
-            placeholder="email@example.com"
-            autoCapitalize="none"
-            onChangeText={text => { emailRef.current = text; }}
-            style={styles.inviteInput}
-          />
-          <ThemedButton
-            title="Send Invite"
-            onPress={async () => {
-              const { data, error } = await addUser(emailRef.current, []);
-              if (data) {
-                Alert.alert("Invited!", `${emailRef.current} was invited.`);
-              } else {
-                Alert.alert("Error", error?.message);
-              }
-            }}
-          />
-        </ThemedCard>
 
       </ScrollView>
     </ThemedView>
@@ -185,9 +159,4 @@ const styles = StyleSheet.create({
   eventDesc: { fontSize: 12 },
   taskDueCard: { marginHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.sm },
   taskDueTitle: { fontSize: 14, fontWeight: '500', flex: 1 },
-  divider: { marginHorizontal: spacing.lg, marginVertical: spacing.lg },
-  inviteCard: { marginHorizontal: spacing.lg, gap: spacing.md },
-  inviteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  inviteLabel: { fontSize: 14, opacity: 0.8 },
-  inviteInput: { marginBottom: spacing.xs },
 });
