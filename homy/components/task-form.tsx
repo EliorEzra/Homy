@@ -1,21 +1,25 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Modal, Pressable, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import { Models } from "react-native-appwrite";
 import { spacing } from '@/theme/theme';
 import { ThemedFormField } from "./themed-form-field";
 import { ThemedButton } from "./themed-button";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
 import { useThemeColor } from "@/hooks/use-theme-color";
-import { X, Calendar, Clock } from 'lucide-react-native';
+import { useAuth } from "@/context/auth";
+import { X, Calendar, Clock, User } from 'lucide-react-native';
 
 export type TaskFormData = {
   title: string; description: string; dueDate: string;
   status: "todo" | "in-progress" | "done";
+  assignedTo: string[]; // array of userIds
 }
 
 export type TaskFormProps = {
   visible: boolean; initialData?: TaskFormData; isEditing?: boolean;
+  members?: Models.Membership[];
   onSubmit: (data: TaskFormData) => void; onClose: () => void;
 }
 
@@ -36,13 +40,15 @@ function parseDueDate(str: string): Date {
   return isNaN(d.getTime()) ? new Date() : d;
 }
 
-export function TaskForm({ visible, initialData, isEditing = false, onSubmit, onClose }: TaskFormProps) {
+export function TaskForm({ visible, initialData, isEditing = false, members = [], onSubmit, onClose }: TaskFormProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [dueDate, setDueDate] = useState<Date | null>(
     initialData?.dueDate ? parseDueDate(initialData.dueDate) : null
   );
   const [status, setStatus] = useState<"todo" | "in-progress" | "done">(initialData?.status || "todo");
+  const [assignedTo, setAssignedTo] = useState<string[]>(initialData?.assignedTo || []);
   const [errors, setErrors] = useState<{ title?: string }>({});
 
   // Android shows date and time pickers separately
@@ -58,7 +64,7 @@ export function TaskForm({ visible, initialData, isEditing = false, onSubmit, on
 
   const reset = () => {
     setTitle(""); setDescription(""); setDueDate(null);
-    setStatus("todo"); setErrors({});
+    setStatus("todo"); setAssignedTo([]); setErrors({});
     setShowDatePicker(false); setShowTimePicker(false); setShowIOSPicker(false);
   };
   const handleClose = () => { reset(); onClose(); };
@@ -70,6 +76,7 @@ export function TaskForm({ visible, initialData, isEditing = false, onSubmit, on
       description: description.trim(),
       dueDate: dueDate ? dueDate.toISOString() : "",
       status,
+      assignedTo, // string[]
     });
     reset();
   };
@@ -197,6 +204,43 @@ export function TaskForm({ visible, initialData, isEditing = false, onSubmit, on
                 )}
               </View>
 
+              {/* Assignee */}
+              {members.length > 0 && (
+                <View style={styles.assignSection}>
+                  <View style={styles.assignHeader}>
+                    <User size={15} color={primaryColor} />
+                    <ThemedText style={styles.assignLabel}>Assign To (optional)</ThemedText>
+                  </View>
+                  <View style={styles.assignRow}>
+                    <Pressable
+                      onPress={() => setAssignedTo([])}
+                      style={[styles.assignChip, { borderColor }, assignedTo.length === 0 && { backgroundColor: primaryColor, borderColor: primaryColor }]}
+                    >
+                      <ThemedText style={[styles.assignChipText, assignedTo.length === 0 && { color: 'white' }]}>Anyone</ThemedText>
+                    </Pressable>
+                    {members.map(m => {
+                      const label = m.userId === user?.$id
+                        ? 'Me'
+                        : (m.userName || m.userEmail?.split('@')[0] || m.userId.slice(0, 6));
+                      const isSelected = assignedTo.includes(m.userId);
+                      return (
+                        <Pressable
+                          key={m.userId}
+                          onPress={() => setAssignedTo(prev =>
+                            prev.includes(m.userId)
+                              ? prev.filter(id => id !== m.userId)
+                              : [...prev, m.userId]
+                          )}
+                          style={[styles.assignChip, { borderColor }, isSelected && { backgroundColor: primaryColor, borderColor: primaryColor }]}
+                        >
+                          <ThemedText style={[styles.assignChipText, isSelected && { color: 'white' }]}>{label}</ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+
               {/* Status */}
               <View style={styles.statusSection}>
                 <ThemedText style={styles.statusLabel}>Status</ThemedText>
@@ -240,6 +284,12 @@ const styles = StyleSheet.create({
   iosPickerHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.1)' },
   iosToggle: { fontWeight: '600', fontSize: 14 },
   iosPickerWidget: { height: 200 },
+  assignSection: { marginBottom: spacing.md },
+  assignHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
+  assignLabel: { fontWeight: '600', fontSize: 14 },
+  assignRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  assignChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 20, borderWidth: 1 },
+  assignChipText: { fontSize: 13, fontWeight: '600' },
   statusSection: { marginVertical: spacing.md },
   statusLabel: { marginBottom: spacing.sm, fontWeight: '600' },
   statusRow: { flexDirection: 'row', gap: spacing.sm },

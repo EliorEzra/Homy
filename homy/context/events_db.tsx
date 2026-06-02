@@ -3,6 +3,7 @@ import { databases } from "@/lib/appwrite";
 import { Models, ID, Permission, Role } from "react-native-appwrite";
 import { CalEvent, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
+import { useHouse } from "./house";
 
 interface ProviderProps {
   children: React.ReactNode;
@@ -29,6 +30,7 @@ const EventsContext = createContext<EventsDBContextValue | undefined>(undefined)
 export function EventsProvider(props: ProviderProps) {
   const [events, setEvents] = useState<Models.Row[] | null>([]);
   const { user } = useAuth();
+  const { houseTeamId } = useHouse();
 
   async function getEvents() {
     try {
@@ -36,7 +38,10 @@ export function EventsProvider(props: ProviderProps) {
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.EVENTS,
       });
-      setEvents(response.rows);
+      const filtered = houseTeamId
+        ? response.rows.filter((r: Models.Row) => r.team_id === houseTeamId)
+        : [];
+      setEvents(filtered);
     } catch (error) {
       console.log("error fetching events", error);
       setEvents(null);
@@ -57,15 +62,19 @@ export function EventsProvider(props: ProviderProps) {
           date: data.date ?? "",
           time: data.time ?? "",
           description: data.description ?? "",
+          assigned_to: data.assigned_to ?? "",
           userId: user.$id,
+          team_id: houseTeamId ?? "",
         },
         permissions: [
           Permission.read(Role.user(user.$id)),
           Permission.write(Role.user(user.$id)),
+          // All house members can read; only the creator can write
+          ...(houseTeamId ? [Permission.read(Role.team(houseTeamId))] : []),
           ...permissions,
         ],
       });
-      setEvents(prev => [...(prev ?? []), { $id: rowId, title: data.title, date: data.date ?? "", time: data.time ?? "", description: data.description ?? "", userId: user.$id } as Models.Row]);
+      setEvents(prev => [...(prev ?? []), { $id: rowId, title: data.title, date: data.date ?? "", time: data.time ?? "", description: data.description ?? "", assigned_to: data.assigned_to ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -87,11 +96,14 @@ export function EventsProvider(props: ProviderProps) {
   }
 
   useEffect(() => {
-    if (!user) return;
+    if (!houseTeamId) {
+      setEvents([]);
+      return;
+    }
     (async () => {
       await getEvents();
     })();
-  }, [user?.$id]);
+  }, [houseTeamId]);
 
   return (
     <EventsContext.Provider value={{ addEvent, deleteEvent, events }}>
