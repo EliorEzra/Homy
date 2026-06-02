@@ -114,7 +114,7 @@ export default function AcceptInviteScreen() {
             </ThemedText>
             <ThemedButton
               title="Go to Home"
-              onPress={() => router.replace('/(tabs)/home')}
+              onPress={() => router.replace('/(tabs)')}
               style={styles.btn}
             />
           </View>
@@ -127,7 +127,7 @@ export default function AcceptInviteScreen() {
             <ThemedText style={[styles.msg, { color: mutedColor }]}>{errorMsg}</ThemedText>
             <ThemedButton
               title="Go to Home"
-              onPress={() => router.replace('/(tabs)/home')}
+              onPress={() => router.replace('/(tabs)')}
               style={styles.btn}
             />
           </View>
@@ -169,7 +169,7 @@ export default function AcceptInviteScreen() {
             />
             <ThemedButton
               title="Decline Invite"
-              onPress={() => router.replace('/(tabs)/home')}
+              onPress={() => router.replace('/(tabs)')}
               style={[styles.btn, styles.btnSecondary]}
             />
           </View>

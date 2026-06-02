@@ -137,7 +137,7 @@ export default function CreateHouse() {
       Alert.alert("Could Not Join", error?.message ?? "Invalid or expired code.");
     } else {
       // Navigation is handled by useProtectedRoute once house state updates
-      router.replace("/(tabs)/home");
+      router.replace("/(tabs)");
     }
   };
 
@@ -308,7 +308,7 @@ export default function CreateHouse() {
                 const { data, error } = await createHouse(houseNameRef.current.trim(), roles);
                 setLoading(false);
                 if (data) {
-                  router.replace("/(tabs)/home");
+                  router.replace("/(tabs)");
                 } else {
                   Alert.alert("Error Creating House", error?.message);
                 }

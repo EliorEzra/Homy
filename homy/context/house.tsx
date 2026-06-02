@@ -3,7 +3,6 @@ import { team, functions, databases } from "@/lib/appwrite";
 import { Models, ID, Query } from "react-native-appwrite";
 import { DatabaseIDs, RolePermissions } from "./db_models";
 import { useAuth } from "./auth";
-import { useNavigationContainerRef, useRouter, useSegments } from "expo-router";
 
 // ─── Generic response ─────────────────────────────────────────────────────────
 // All async house functions return { data?, error? } so callers can do:
@@ -39,6 +38,7 @@ interface HouseContextValue {
   rolePermissions: Record<string, RolePermissions>;
   /** When true, canEdit/canDelete only apply to items from equal or lower ranked creators. */
   hierarchyEnabled: boolean;
+  houseInitialized: boolean;
 }
 
 interface ProviderProps {
@@ -90,30 +90,6 @@ export function HouseProvider({ children }: ProviderProps) {
   const [hierarchyEnabled, setHierarchyEnabled] = useState(false);
 
   const { user } = useAuth();
-
-  // ─── Route guard ───────────────────────────────────────────────────────────
-  // Redirects to sign-in, house setup, or main app based on auth + house state.
-  const useProtectedRoute = (house: Models.Membership | null) => {
-    const segments = useSegments();
-    const router = useRouter();
-    const [isNavigationReady, setNavigationReady] = useState(false);
-    const rootNavigation = useNavigationContainerRef();
-
-    useEffect(() => {
-      const unsub = rootNavigation?.addListener("state", () => setNavigationReady(true));
-      return () => { if (unsub) unsub(); };
-    }, [rootNavigation]);
-
-    useEffect(() => {
-      if (!isNavigationReady || !houseInitialized) return;
-      const inTabs = segments[0] === "(tabs)";
-      const inAuth = segments[0] === "(auth)";
-      if (inAuth) return;
-      if (!user) router.push({ pathname: "/(auth)/sign-in" });
-      else if (!house) router.push({ pathname: "/(house)" });
-      else if (house && !inTabs) router.push("/(tabs)/home");
-    }, [house, user, segments, houseInitialized, isNavigationReady]);
-  };
 
   // ─── Prefs helper ─────────────────────────────────────────────────────────
   // Reads roles / roleOrder / rolePermissions from raw team prefs and applies to state.
@@ -464,13 +440,14 @@ export function HouseProvider({ children }: ProviderProps) {
 
   // ─── Startup: load house from Appwrite ────────────────────────────────────
   useEffect(() => {
-    if (!user) {
-      setHouse(null);
-      setMembers([]);
-      setHouseInitialized(true);
-      return;
-    }
     (async () => {
+      setHouseInitialized(false)
+      if (!user) {
+        setHouse(null);
+        setMembers([]);
+        setHouseInitialized(true);
+        return;
+      }
       try {
         const houses = await team.list({ total: true });
         if (houses.total > 1) throw new Error("User belongs to more than 1 house");
@@ -487,15 +464,13 @@ export function HouseProvider({ children }: ProviderProps) {
     })();
   }, [user?.$id]);
 
-  useProtectedRoute(house);
-
   return (
     <HouseContext.Provider value={{
       createHouse, addUser, getUsers, changeUserRoles, removeMember,
       refreshMembers, acceptHouseInvite, leaveHouse, deleteHouse,
       joinHouseByCode, transferOwnership, updateRolePermissions, updateRoleOrder,
       addRole, removeRole, updateHierarchyEnabled,
-      house, houseTeamId, members, houseRoles, roleOrder, rolePermissions, hierarchyEnabled,
+      house, houseTeamId, members, houseRoles, roleOrder, rolePermissions, hierarchyEnabled, houseInitialized
     }}>
       {children}
     </HouseContext.Provider>

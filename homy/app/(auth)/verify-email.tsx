@@ -36,7 +36,7 @@ export default function VerifyEmail() {
       const { data, error } = await verifyEmail(userId, code.trim(), email!, password!);
       if (data) {
         Alert.alert("Success", "Your email has been verified successfully!");
-        router.replace("/(tabs)/home");
+        router.replace("/(tabs)");
       } else {
         Alert.alert("Verification Error", error?.message || "Invalid code. Please check your email and try again.");
       }

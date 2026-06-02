@@ -80,7 +80,7 @@ export default function SignIn() {
                 const { data, error } = await signIn(emailRef.current, passwordRef.current);
                 setLoading(false);
                 if (data) {
-                  router.replace("/(tabs)/home");
+                  router.replace("/(tabs)");
                 } else {
                   Alert.alert("Login Error", error?.message);
                 }

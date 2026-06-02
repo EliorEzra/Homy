@@ -125,8 +125,6 @@ export default function HomeScreen() {
             <ThemedText style={styles.taskDueTitle} numberOfLines={1}>{task.task_text as string}</ThemedText>
           </ThemedCard>
         ))}
-
-
       </ScrollView>
     </ThemedView>
   );
