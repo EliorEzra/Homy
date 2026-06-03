@@ -38,7 +38,7 @@ export function ThemedFormField({ label, placeholder, value, onChangeText, error
 const styles = StyleSheet.create({
   container: { marginBottom: spacing.md },
   label: { fontSize: 14, fontWeight: '600', marginBottom: spacing.xs },
-  required: { color: '#ff3748' },
-  inputError: { borderColor: '#ff3748' },
-  error: { color: '#ff3748', fontSize: 12, marginTop: spacing.xs },
+  required: { color: '#e03040' },
+  inputError: { borderColor: '#e03040' },
+  error: { color: '#e03040', fontSize: 12, marginTop: spacing.xs },
 });

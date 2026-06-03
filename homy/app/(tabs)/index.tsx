@@ -1,4 +1,5 @@
 import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
+import { FadeScreen } from '@/components/fade-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
@@ -65,6 +66,7 @@ export default function HomeScreen() {
   const userName = user?.name ? user.name.charAt(0).toUpperCase() + user.name.slice(1) : user?.email?.split('@')[0] || 'there';
 
   return (
+    <FadeScreen>
     <ThemedView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
@@ -76,10 +78,10 @@ export default function HomeScreen() {
 
         {/* Quick Nav Cards */}
         <View style={styles.quickGrid}>
-          <QuickCard label="Tasks" icon={<CheckCircle size={22} color="white" />} color="#ff5c02" onPress={() => router.push('/(tabs)/tasks')} />
-          <QuickCard label="Shop" icon={<ShoppingCart size={22} color="white" />} color="#4d00ff" onPress={() => router.push('/(tabs)/shop')} />
-          <QuickCard label="Finances" icon={<DollarSign size={22} color="white" />} color="#1fc16b" onPress={() => router.push('/(tabs)/finances')} />
-          <QuickCard label="Calendar" icon={<Calendar size={22} color="white" />} color="#e0a500" onPress={() => router.push('/(tabs)/calendar')} />
+          <QuickCard label="Tasks" icon={<CheckCircle size={22} color="white" />} color="#106d8f" onPress={() => router.push('/(tabs)/tasks')} />
+          <QuickCard label="Shop" icon={<ShoppingCart size={22} color="white" />} color="#1a8fad" onPress={() => router.push('/(tabs)/shop')} />
+          <QuickCard label="Finances" icon={<DollarSign size={22} color="white" />} color="#1a5276" onPress={() => router.push('/(tabs)/finances')} />
+          <QuickCard label="Calendar" icon={<Calendar size={22} color="white" />} color="#0d7ea8" onPress={() => router.push('/(tabs)/calendar')} />
         </View>
 
         {/* Today's Events */}
@@ -127,6 +129,7 @@ export default function HomeScreen() {
         ))}
       </ScrollView>
     </ThemedView>
+    </FadeScreen>
   );
 }
 

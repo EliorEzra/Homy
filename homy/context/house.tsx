@@ -104,16 +104,26 @@ export function HouseProvider({ children }: ProviderProps) {
   // ─── House loader ─────────────────────────────────────────────────────────
   // Fetches team metadata + memberships for a known teamId and sets all state.
   // Used both by the startup effect and by joinHouseByCode.
+  //
+  // Two-phase load:
+  //   1. Fetch team info + raw memberships in parallel — fast, unblocks the UI.
+  //   2. Enrich members with real names/emails via Appwrite Function in background
+  //      — does NOT block phase 1, updates state when ready.
   async function loadHouseFromTeam(teamId: string) {
-    const [houseTeam, ownMemberships, allMemberships] = await Promise.all([
+    const [houseTeam, ownMemberships, rawMemberships] = await Promise.all([
       team.get({ teamId }),
       team.listMemberships({ teamId, queries: [Query.equal('userId', user!.$id)] }),
-      fetchEnrichedMembers(teamId), // enriched names/emails via Appwrite Function
+      team.listMemberships({ teamId }),
     ]);
     setHouse(ownMemberships.memberships[0] ?? null);
     setHouseTeamId(teamId);
     applyPrefs(houseTeam.prefs);
-    setMembers(allMemberships);
+    setMembers(rawMemberships.memberships);
+
+    // Enrich names/emails in background — updates state when the function returns.
+    fetchEnrichedMembers(teamId)
+      .then(enriched => setMembers(enriched))
+      .catch(() => {});
   }
 
   // ─── Fallback refresh ─────────────────────────────────────────────────────

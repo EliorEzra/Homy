@@ -61,6 +61,7 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const borderColor = useThemeColor({}, 'inputBorder');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
+  const inputBg = useThemeColor({}, 'inputBackground');
 
   const reset = () => {
     setTitle(""); setDescription(""); setDueDate(null);
@@ -120,7 +121,7 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
           <ThemedView style={styles.sheet}>
             <View style={styles.header}>
               <ThemedText type="subtitle">{isEditing ? "Edit Task" : "New Task"}</ThemedText>
-              <Pressable onPress={handleClose} hitSlop={8}><X size={24} color="#ff5c02" /></Pressable>
+              <Pressable onPress={handleClose} hitSlop={8}><X size={24} color={primaryColor} /></Pressable>
             </View>
 
             <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
@@ -136,7 +137,7 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
                 <ThemedText style={styles.dateLabel}>Due Date (optional)</ThemedText>
                 <Pressable
                   onPress={openPicker}
-                  style={[styles.dateBtn, { borderColor }]}
+                  style={[styles.dateBtn, { borderColor, backgroundColor: inputBg }]}
                 >
                   <Calendar size={16} color={dueDate ? primaryColor : mutedColor} />
                   <ThemedText style={[styles.dateBtnText, { color: dueDate ? primaryColor : mutedColor }]}>
@@ -214,7 +215,7 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
                   <View style={styles.assignRow}>
                     <Pressable
                       onPress={() => setAssignedTo([])}
-                      style={[styles.assignChip, { borderColor }, assignedTo.length === 0 && { backgroundColor: primaryColor, borderColor: primaryColor }]}
+                      style={[styles.assignChip, { borderColor, backgroundColor: inputBg }, assignedTo.length === 0 && { backgroundColor: primaryColor, borderColor: primaryColor }]}
                     >
                       <ThemedText style={[styles.assignChipText, assignedTo.length === 0 && { color: 'white' }]}>Anyone</ThemedText>
                     </Pressable>
@@ -231,7 +232,7 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
                               ? prev.filter(id => id !== m.userId)
                               : [...prev, m.userId]
                           )}
-                          style={[styles.assignChip, { borderColor }, isSelected && { backgroundColor: primaryColor, borderColor: primaryColor }]}
+                          style={[styles.assignChip, { borderColor, backgroundColor: inputBg }, isSelected && { backgroundColor: primaryColor, borderColor: primaryColor }]}
                         >
                           <ThemedText style={[styles.assignChipText, isSelected && { color: 'white' }]}>{label}</ThemedText>
                         </Pressable>
@@ -247,8 +248,8 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
                 <View style={styles.statusRow}>
                   {(["todo", "in-progress", "done"] as const).map(s => (
                     <Pressable key={s} onPress={() => setStatus(s)}
-                      style={[styles.statusBtn, status === s && styles.statusBtnActive]}>
-                      <ThemedText style={[styles.statusText, status === s && styles.statusTextActive]}>
+                      style={[styles.statusBtn, { borderColor, backgroundColor: inputBg }, status === s && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
+                      <ThemedText style={[styles.statusText, status === s && { color: 'white' }]}>
                         {s === "todo" ? "To Do" : s === "in-progress" ? "In Progress" : "Done"}
                       </ThemedText>
                     </Pressable>
@@ -271,12 +272,12 @@ export function TaskForm({ visible, initialData, isEditing = false, members = []
 const styles = StyleSheet.create({
   wrapper: { flex: 1, justifyContent: 'flex-end' },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { minHeight: '80%', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingTop: spacing.lg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.1)' },
+  sheet: { minHeight: '80%', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: spacing.lg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.08)' },
   form: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   dateSection: { marginBottom: spacing.md },
-  dateLabel: { fontWeight: '600', marginBottom: spacing.xs },
-  dateBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
+  dateLabel: { fontWeight: '600', fontSize: 14, marginBottom: spacing.xs },
+  dateBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
   dateBtnText: { fontSize: 14, fontWeight: '500' },
   dateDivider: { width: 1, height: 16 },
   clearDate: { marginLeft: 'auto' },
@@ -293,10 +294,8 @@ const styles = StyleSheet.create({
   statusSection: { marginVertical: spacing.md },
   statusLabel: { marginBottom: spacing.sm, fontWeight: '600' },
   statusRow: { flexDirection: 'row', gap: spacing.sm },
-  statusBtn: { flex: 1, paddingVertical: spacing.sm, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.2)', alignItems: 'center' },
-  statusBtnActive: { backgroundColor: '#ff5c02', borderColor: '#ff5c02' },
+  statusBtn: { flex: 1, paddingVertical: spacing.sm + 2, borderRadius: 12, borderWidth: 1.5, alignItems: 'center' },
   statusText: { fontSize: 12, fontWeight: '600' },
-  statusTextActive: { color: 'white' },
-  footer: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.1)' },
+  footer: { flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.08)' },
   footerBtn: { flex: 1 },
 });

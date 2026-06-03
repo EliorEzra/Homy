@@ -34,6 +34,7 @@ interface TasksDBContextValue {
   addTask: (data: Task, permissions: string[]) => Promise<addTaskResponse>;
   updateTask: (taskId: string, data: Task, permissions?: string[]) => Promise<updateTaskResponse>;
   deleteTask: (taskId: string) => Promise<deleteTaskResponse>;
+  clearCompletedTasks: () => Promise<void>;
   tasks: Models.Row[] | null;
 }
 
@@ -124,6 +125,16 @@ export function TasksProvider(props: ProviderProps) {
     }
   }
 
+  async function clearCompletedTasks(): Promise<void> {
+    const completed = (tasks ?? []).filter(t => t.completed);
+    await Promise.all(
+      completed.map(t =>
+        databases.deleteRow({ databaseId: DatabaseIDs.DATABASE, tableId: DatabaseIDs.TASKS, rowId: t.$id })
+      )
+    );
+    setTasks(prev => (prev ?? []).filter(t => !t.completed));
+  }
+
   useEffect(() => {
     if (!houseTeamId) {
       setTasks([]);
@@ -140,7 +151,7 @@ export function TasksProvider(props: ProviderProps) {
   }, [houseTeamId]);
 
   return (
-    <TasksContext.Provider value={{ getTasks, addTask, updateTask, deleteTask, tasks }}>
+    <TasksContext.Provider value={{ getTasks, addTask, updateTask, deleteTask, clearCompletedTasks, tasks }}>
       {props.children}
     </TasksContext.Provider>
   );

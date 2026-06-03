@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   const borderColor = useThemeColor({}, 'inputBorder');
   const inputBg = useThemeColor({}, 'inputBackground');
   const textColor = useThemeColor({}, 'text');
+  const cardBg = useThemeColor({}, 'cardBackground');
   const isDark = colorScheme === 'dark';
 
   const [inviteVisible, setInviteVisible] = useState(false);
@@ -367,8 +368,8 @@ export default function SettingsScreen() {
                 </View>
                 {isOwner && !memberIsOwner && (
                   <View style={styles.memberActions}>
-                    <Pressable onPress={() => handleTransferOwnership(member)} hitSlop={8} style={[styles.iconBtn, { backgroundColor: '#e0a50020' }]}>
-                      <Crown size={14} color="#e0a500" />
+                    <Pressable onPress={() => handleTransferOwnership(member)} hitSlop={8} style={[styles.iconBtn, { backgroundColor: '#c47c2a20' }]}>
+                      <Crown size={14} color="#c47c2a" />
                     </Pressable>
                     <Pressable onPress={() => openRoleEdit(member)} hitSlop={8} style={[styles.iconBtn, { backgroundColor: `${primaryColor}15` }]}>
                       <Pencil size={14} color={primaryColor} />
@@ -588,7 +589,7 @@ export default function SettingsScreen() {
                     onPress={() => setSelectedRole('')}
                     style={[
                       styles.roleChip,
-                      { borderColor },
+                      { borderColor, backgroundColor: inputBg },
                       selectedRole === '' && { backgroundColor: `${primaryColor}20`, borderColor: primaryColor },
                     ]}
                   >
@@ -602,7 +603,7 @@ export default function SettingsScreen() {
                       onPress={() => setSelectedRole(r)}
                       style={[
                         styles.roleChip,
-                        { borderColor },
+                        { borderColor, backgroundColor: inputBg },
                         selectedRole === r && { backgroundColor: `${primaryColor}20`, borderColor: primaryColor },
                       ]}
                     >
@@ -657,7 +658,7 @@ export default function SettingsScreen() {
                 { tab: 'finances' as const, label: 'Finances' },
                 { tab: 'calendar' as const, label: 'Calendar' },
               ] as const).map(({ tab, label }) => (
-                <View key={tab} style={[styles.permTabSection, { borderColor }]}>
+                <View key={tab} style={[styles.permTabSection, { borderColor, backgroundColor: cardBg }]}>
                   <ThemedText style={[styles.permTabLabel, { color: primaryColor }]}>{label}</ThemedText>
                   {([
                     { key: 'canCreate' as const, label: 'Create new items' },

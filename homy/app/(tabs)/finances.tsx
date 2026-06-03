@@ -2,6 +2,7 @@ import { StyleSheet, View, Pressable, Modal, TextInput, ScrollView, KeyboardAvoi
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
+import { FadeScreen } from '@/components/fade-screen';
 import { spacing } from '@/theme/theme';
 import { useState } from 'react';
 import { Plus, DollarSign, Trash2, X, ArrowLeftRight, CheckCircle } from 'lucide-react-native';
@@ -115,6 +116,7 @@ export default function FinancesScreen() {
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
+    <FadeScreen>
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
         <ThemedText type="title">Finances</ThemedText>
@@ -256,7 +258,7 @@ export default function FinancesScreen() {
                 <View style={styles.chipRow}>
                   {MEMBERS.map(m => (
                     <Pressable key={m} onPress={() => setPaidBy(m)}
-                      style={[styles.chip, { borderColor }, paidBy === m && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
+                      style={[styles.chip, { borderColor, backgroundColor: inputBg }, paidBy === m && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
                       <ThemedText style={[styles.chipText, paidBy === m && { color: 'white' }]}>{m}</ThemedText>
                     </Pressable>
                   ))}
@@ -265,7 +267,7 @@ export default function FinancesScreen() {
                 <View style={styles.chipRow}>
                   {MEMBERS.map(m => (
                     <Pressable key={m} onPress={() => toggleSplit(m)}
-                      style={[styles.chip, { borderColor }, splitWith.includes(m) && { backgroundColor: '#1fc16b', borderColor: '#1fc16b' }]}>
+                      style={[styles.chip, { borderColor, backgroundColor: inputBg }, splitWith.includes(m) && { backgroundColor: '#1fc16b', borderColor: '#1fc16b' }]}>
                       <ThemedText style={[styles.chipText, splitWith.includes(m) && { color: 'white' }]}>{m}</ThemedText>
                     </Pressable>
                   ))}
@@ -285,6 +287,7 @@ export default function FinancesScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </ThemedView>
+    </FadeScreen>
   );
 }
 

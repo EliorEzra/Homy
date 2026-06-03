@@ -15,18 +15,19 @@ function TabIcon({ Icon, color, size }: { Icon: React.ElementType; color: string
 export default function TabLayout() {
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const defaultColor = useThemeColor({}, 'tabIconDefault');
+  const cardBg = useThemeColor({}, 'cardBackground');
   const bgColor = useThemeColor({}, 'background');
 
   const renderHeader = useCallback(() => <AppHeader />, []);
 
   const tabBarStyle = useMemo(() => ({
-    backgroundColor: bgColor,
+    backgroundColor: cardBg,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.06)' as const,
     height: 60,
     paddingBottom: 8,
     paddingTop: 8,
-  }), [bgColor]);
+  }), [cardBg]);
 
   const tabBarItemStyle = useMemo(() => ({
     flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const,
@@ -41,7 +42,17 @@ export default function TabLayout() {
       <EventsProvider>
         <ShopProvider>
           <ExpensesProvider>
-            <Tabs screenOptions={{ tabBarActiveTintColor: primaryColor, tabBarInactiveTintColor: defaultColor, header: renderHeader, tabBarStyle, tabBarItemStyle, tabBarLabelStyle }}>
+            <Tabs
+              screenOptions={{
+                tabBarActiveTintColor: primaryColor,
+                tabBarInactiveTintColor: defaultColor,
+                header: renderHeader,
+                tabBarStyle,
+                tabBarItemStyle,
+                tabBarLabelStyle,
+                sceneContainerStyle: { backgroundColor: bgColor },
+              }}
+            >
               <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <TabIcon Icon={Home} color={color} size={size} /> }} />
               <Tabs.Screen name="tasks" options={{ title: 'Tasks', tabBarIcon: ({ color, size }) => <TabIcon Icon={ListTodo} color={color} size={size} /> }} />
               <Tabs.Screen name="shop" options={{ title: 'Shop', tabBarIcon: ({ color, size }) => <TabIcon Icon={ShoppingCart} color={color} size={size} /> }} />

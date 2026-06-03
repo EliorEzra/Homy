@@ -9,19 +9,10 @@ interface ProviderProps {
   children: React.ReactNode;
 }
 
-interface addEventResponse {
-  error: any | undefined;
-  data: {} | undefined;
-}
-
-interface deleteEventResponse {
-  error: any | undefined;
-  data: {} | undefined;
-}
-
 interface EventsDBContextValue {
-  addEvent: (data: CalEvent, permissions: string[]) => Promise<addEventResponse>;
-  deleteEvent: (eventId: string) => Promise<deleteEventResponse>;
+  addEvent: (data: CalEvent, permissions: string[]) => Promise<{ error?: any; data?: {} }>;
+  updateEvent: (eventId: string, data: Partial<CalEvent>) => Promise<{ error?: any; data?: {} }>;
+  deleteEvent: (eventId: string) => Promise<{ error?: any; data?: {} }>;
   events: Models.Row[] | null;
 }
 
@@ -81,7 +72,22 @@ export function EventsProvider(props: ProviderProps) {
     }
   }
 
-  async function deleteEvent(eventId: string): Promise<deleteEventResponse> {
+  async function updateEvent(eventId: string, data: Partial<CalEvent>): Promise<{ error?: any; data?: {} }> {
+    try {
+      await databases.updateRow({
+        databaseId: DatabaseIDs.DATABASE,
+        tableId: DatabaseIDs.EVENTS,
+        rowId: eventId,
+        data,
+      });
+      setEvents(prev => (prev ?? []).map(e => e.$id === eventId ? { ...e, ...data } : e));
+      return { data: {} };
+    } catch (error) {
+      return { error };
+    }
+  }
+
+  async function deleteEvent(eventId: string): Promise<{ error?: any; data?: {} }> {
     try {
       await databases.deleteRow({
         databaseId: DatabaseIDs.DATABASE,
@@ -106,7 +112,7 @@ export function EventsProvider(props: ProviderProps) {
   }, [houseTeamId]);
 
   return (
-    <EventsContext.Provider value={{ addEvent, deleteEvent, events }}>
+    <EventsContext.Provider value={{ addEvent, updateEvent, deleteEvent, events }}>
       {props.children}
     </EventsContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { StyleSheet, Alert, View, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { StyleSheet, Alert, View, Image, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useHouse } from "@/context/house";
 import { Stack, useRouter } from "expo-router";
 import { useRef, useState } from "react";
@@ -9,7 +9,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedCard } from "@/components/themed-card";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { spacing } from "@/theme/theme";
-import { Home, X, Users, Heart, Coffee, Pencil, LogIn } from "lucide-react-native";
+import { X, Users, Heart, Coffee, Pencil, LogIn, Home } from "lucide-react-native";
 
 // ─── Preset role templates ────────────────────────────────────────────────────
 
@@ -37,8 +37,8 @@ const PRESETS: Preset[] = [
 ];
 
 const PRESET_COLORS: Record<string, string> = {
-  family: '#ff5c02',
-  roommates: '#4d00ff',
+  family: '#106d8f',
+  roommates: '#61b2cf',
   custom: '#1fc16b',
 };
 
@@ -107,6 +107,7 @@ export default function CreateHouse() {
   const borderColor = useThemeColor({}, 'inputBorder');
   const textColor = useThemeColor({}, 'text');
   const inputBg = useThemeColor({}, 'inputBackground');
+  const cardBg = useThemeColor({}, 'cardBackground');
 
   // Mode toggle
   const [mode, setMode] = useState<'create' | 'join'>('create');
@@ -144,23 +145,27 @@ export default function CreateHouse() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <ThemedView style={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ThemedView style={[styles.container, { backgroundColor: primaryColor }]}>
+        {/* Hero */}
+        <View style={[styles.hero, { backgroundColor: primaryColor }]}>
+          <Image
+            source={require('@/assets/images/logoHomy.png')}
+            style={styles.heroLogo}
+            resizeMode="contain"
+            tintColor="white"
+          />
+          <ThemedText style={styles.heroTitle}>Your Household</ThemedText>
+          <ThemedText style={styles.heroSub}>Create a new home or join an existing one</ThemedText>
+        </View>
 
-            {/* Header */}
-            <View style={styles.logoSection}>
-              <View style={[styles.logoIcon, { backgroundColor: primaryColor }]}>
-                <Home size={32} color="white" />
-              </View>
-              <ThemedText style={styles.logoText}>HOMY</ThemedText>
-              <ThemedText style={[styles.tagline, { color: mutedColor }]}>Set up your household</ThemedText>
-            </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheetWrapper}>
+          <ScrollView contentContainerStyle={[styles.scroll, { backgroundColor: cardBg }]} showsVerticalScrollIndicator={false}>
+
 
             {/* Mode toggle */}
             <View style={[styles.modeToggle, { borderColor }]}>
               <Pressable
-                style={[styles.modeTab, mode === 'create' && { backgroundColor: primaryColor }]}
+                style={[styles.modeTab, { backgroundColor: inputBg }, mode === 'create' && { backgroundColor: primaryColor }]}
                 onPress={() => setMode('create')}
               >
                 <Home size={15} color={mode === 'create' ? 'white' : mutedColor} />
@@ -169,7 +174,7 @@ export default function CreateHouse() {
                 </ThemedText>
               </Pressable>
               <Pressable
-                style={[styles.modeTab, mode === 'join' && { backgroundColor: primaryColor }]}
+                style={[styles.modeTab, { backgroundColor: inputBg }, mode === 'join' && { backgroundColor: primaryColor }]}
                 onPress={() => setMode('join')}
               >
                 <LogIn size={15} color={mode === 'join' ? 'white' : mutedColor} />
@@ -324,15 +329,17 @@ export default function CreateHouse() {
       </ThemedView>
     </>
   );
+
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
-  logoSection: { alignItems: 'center', marginBottom: spacing.xl },
-  logoIcon: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  logoText: { fontSize: 28, fontWeight: '900', letterSpacing: 4, marginBottom: spacing.xs },
-  tagline: { fontSize: 14 },
+  hero: { paddingTop: 60, paddingBottom: 44, paddingHorizontal: spacing.xl, alignItems: 'center', gap: spacing.sm },
+  heroLogo: { width: 150, height: 56, marginBottom: spacing.sm },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: 'white', textAlign: 'center' },
+  heroSub: { fontSize: 14, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
+  sheetWrapper: { flex: 1, marginTop: -28 },
+  scroll: { flexGrow: 1, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: spacing.lg, paddingTop: spacing['2xl'], paddingBottom: spacing['5xl'] },
   title: { fontSize: 24, fontWeight: '800', marginBottom: spacing.sm },
   subtitle: { fontSize: 14, lineHeight: 20, marginBottom: spacing.lg },
   card: { gap: spacing.lg, marginBottom: spacing.lg },
