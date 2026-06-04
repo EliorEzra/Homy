@@ -39,7 +39,7 @@ const PRESETS: Preset[] = [
 const PRESET_COLORS: Record<string, string> = {
   family: '#106d8f',
   roommates: '#61b2cf',
-  custom: '#1fc16b',
+  custom: '#1a5276',
 };
 
 // ─── Tag input ────────────────────────────────────────────────────────────────
@@ -53,14 +53,15 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
   const textColor = useThemeColor({}, 'text');
 
   const addTag = (val: string) => {
-    const trimmed = val.trim().replace(/[,.]$/, '').trim();
+    const trimmed = val.trim().replace(/[,.]$/, '').trim().replace(/\s+/g, '-');
     if (trimmed && !tags.includes(trimmed)) onChange([...tags, trimmed]);
     setInput('');
   };
 
   const handleChange = (text: string) => {
     if (text.endsWith(',') || text.endsWith('.')) { addTag(text); return; }
-    setInput(text);
+    // Replace spaces with dashes as the user types so Appwrite never rejects the role
+    setInput(text.replace(/\s/g, '-'));
   };
 
   return (
@@ -154,8 +155,6 @@ export default function CreateHouse() {
             resizeMode="contain"
             tintColor="white"
           />
-          <ThemedText style={styles.heroTitle}>Your Household</ThemedText>
-          <ThemedText style={styles.heroSub}>Create a new home or join an existing one</ThemedText>
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.sheetWrapper}>
@@ -334,10 +333,10 @@ export default function CreateHouse() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  hero: { paddingTop: 60, paddingBottom: 44, paddingHorizontal: spacing.xl, alignItems: 'center', gap: spacing.sm },
-  heroLogo: { width: 150, height: 56, marginBottom: spacing.sm },
-  heroTitle: { fontSize: 26, fontWeight: '800', color: 'white', textAlign: 'center' },
-  heroSub: { fontSize: 14, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
+  hero: { paddingTop: 48, paddingBottom: 24, paddingHorizontal: spacing.xl, alignItems: 'center' },
+  heroLogo: { width: 120, height: 120 },
+  heroTitle: { fontSize: 22, fontWeight: '800', color: 'white', textAlign: 'center' },
+  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   sheetWrapper: { flex: 1, marginTop: -28 },
   scroll: { flexGrow: 1, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: spacing.lg, paddingTop: spacing['2xl'], paddingBottom: spacing['5xl'] },
   title: { fontSize: 24, fontWeight: '800', marginBottom: spacing.sm },

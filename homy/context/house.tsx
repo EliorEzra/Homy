@@ -62,20 +62,39 @@ const GET_MEMBERS_FUNCTION_ID =
  * function fails (e.g. not deployed yet) so the app keeps working.
  */
 async function fetchEnrichedMembers(teamId: string): Promise<Models.Membership[]> {
-  try {
-    const exec = await functions.createExecution(
-      GET_MEMBERS_FUNCTION_ID,
-      JSON.stringify({ teamId }),
-      false
-    );
-    if (exec.status === 'completed') {
-      const result = JSON.parse(exec.responseBody);
-      if (result.success) return result.members as Models.Membership[];
+  // Retry up to 3 times with increasing delays — mirrors the auth startup retry
+  // pattern to handle intermittent network blips on self-hosted dynv6 setups.
+  const delays = [0, 1500, 3000];
+  for (const delay of delays) {
+    try {
+      if (delay > 0) await new Promise(r => setTimeout(r, delay));
+      const exec = await functions.createExecution(
+        GET_MEMBERS_FUNCTION_ID,
+        JSON.stringify({ teamId }),
+        false
+      );
+      if (exec.status === 'completed' && exec.responseBody) {
+        try {
+          const result = JSON.parse(exec.responseBody);
+          if (result.success && Array.isArray(result.members)) {
+            return result.members as Models.Membership[];
+          }
+        } catch (_) {
+          // responseBody wasn't valid JSON — try again
+        }
+      }
+    } catch (_) {
+      // Network error — try again after delay
     }
-  } catch (_) {}
-  // Fallback: raw memberships (names may be missing for non-owners)
-  const res = await team.listMemberships({ teamId });
-  return res.memberships;
+  }
+  // All retries exhausted — fall back to raw SDK memberships.
+  // Names may be missing for non-owners in Appwrite 1.9 but at least we show something.
+  try {
+    const res = await team.listMemberships({ teamId });
+    return res.memberships;
+  } catch (_) {
+    return [];
+  }
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────

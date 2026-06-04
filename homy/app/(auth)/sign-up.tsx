@@ -42,7 +42,6 @@ export default function SignUp() {
             tintColor="white"
           />
           <ThemedText style={styles.heroTitle}>Join Homy</ThemedText>
-          <ThemedText style={styles.heroSub}>Set up your account and start organizing</ThemedText>
         </View>
 
         {/* ── Form sheet ───────────────────────────────────────────────── */}
@@ -180,13 +179,13 @@ export default function SignUp() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   hero: {
-    paddingTop: 48,
-    paddingBottom: 28,
+    paddingTop: 44,
+    paddingBottom: 48,
     paddingHorizontal: spacing.xl,
     alignItems: 'center',
     gap: spacing.xs,
   },
-  heroLogo: { width: 200, height: 200, marginBottom: spacing.xs },
+  heroLogo: { width: 100, height: 100, marginBottom: spacing.xs },
   heroTitle: { fontSize: 28, fontWeight: '800', color: 'white', textAlign: 'center' },
   heroSub: { fontSize: 15, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
   sheetWrapper: { flex: 1, marginTop: -28 },
