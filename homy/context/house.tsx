@@ -478,20 +478,30 @@ export function HouseProvider({ children }: ProviderProps) {
       if (isMembership) {
         // Ignore memberships from other teams (global channel sees them all).
         if (payload?.teamId && payload.teamId !== houseTeamId) return;
+        const isMine = payload?.userId === user?.$id;
         if (events.some(e => e.endsWith('.create'))) {
           fetchEnrichedMembers(houseTeamId).then(enriched => setMembers(enriched)).catch(() => {});
         } else if (events.some(e => e.endsWith('.update'))) {
           if (payload?.$id) setMembers(prev => prev.map(m => m.$id === payload.$id ? { ...m, ...payload } : m));
+          // If it's my own membership (e.g. I was just made owner), refresh `house`
+          // so owner-gated UI / permissions update immediately.
+          if (isMine && payload?.$id) setHouse(prev => prev ? { ...prev, ...payload } : prev);
         } else if (events.some(e => e.endsWith('.delete'))) {
           if (payload?.$id) setMembers(prev => prev.filter(m => m.$id !== payload.$id));
+          // If I was the one removed, clear my house state so I'm kicked out cleanly.
+          if (isMine) clearHouseState();
         }
-      } else if (events.some(e => e.endsWith('.update')) && payload?.prefs) {
+      } else if (events.some(e => e.endsWith('.update'))) {
         // Team-level update — roles / hierarchy / permissions changed.
-        applyPrefs(payload.prefs);
+        // The realtime payload may omit the full prefs object, so re-fetch the
+        // team to get authoritative prefs rather than trusting payload.prefs.
+        console.log("[RT-TEAM] update received, events:", JSON.stringify(events), "hasPrefs:", !!payload?.prefs); // TEMP
+        if (payload?.prefs) applyPrefs(payload.prefs);
+        team.get({ teamId: houseTeamId }).then(t => applyPrefs(t.prefs)).catch(() => {});
       }
     });
     return () => unsubscribe();
-  }, [houseTeamId]);
+  }, [houseTeamId, user?.$id]);
 
   // ─── Startup: load house from Appwrite ────────────────────────────────────
   useEffect(() => {
