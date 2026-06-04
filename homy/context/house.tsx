@@ -495,7 +495,6 @@ export function HouseProvider({ children }: ProviderProps) {
         // Team-level update — roles / hierarchy / permissions changed.
         // The realtime payload may omit the full prefs object, so re-fetch the
         // team to get authoritative prefs rather than trusting payload.prefs.
-        console.log("[RT-TEAM] update received, events:", JSON.stringify(events), "hasPrefs:", !!payload?.prefs); // TEMP
         if (payload?.prefs) applyPrefs(payload.prefs);
         team.get({ teamId: houseTeamId }).then(t => applyPrefs(t.prefs)).catch(() => {});
       }
