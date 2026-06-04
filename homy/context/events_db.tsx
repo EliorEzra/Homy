@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { databases } from "@/lib/appwrite";
-import { Models, ID, Permission, Role } from "react-native-appwrite";
+import { databases, client } from "@/lib/appwrite";
+import { Models, ID, Permission, Role, Channel } from "react-native-appwrite";
 import { CalEvent, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
 import { useHouse } from "./house";
@@ -65,7 +65,7 @@ export function EventsProvider(props: ProviderProps) {
           ...permissions,
         ],
       });
-      setEvents(prev => [...(prev ?? []), { $id: rowId, title: data.title, date: data.date ?? "", time: data.time ?? "", description: data.description ?? "", assigned_to: data.assigned_to ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
+      setEvents(prev => (prev ?? []).some(e => e.$id === rowId) ? (prev ?? []) : [...(prev ?? []), { $id: rowId, title: data.title, date: data.date ?? "", time: data.time ?? "", description: data.description ?? "", assigned_to: data.assigned_to ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -109,6 +109,24 @@ export function EventsProvider(props: ProviderProps) {
     (async () => {
       await getEvents();
     })();
+  }, [houseTeamId]);
+
+  useEffect(() => {
+    if (!houseTeamId) return;
+    const base = Channel.tablesdb(DatabaseIDs.DATABASE).table(DatabaseIDs.EVENTS).toString();
+    const unsubscribe = client.subscribe([base, `${base}.rows`], (response) => {
+      const events = response.events as string[];
+      const payload = response.payload as Models.Row;
+      if (!payload || payload.team_id !== houseTeamId) return;
+      if (events.some(e => e.endsWith('.create'))) {
+        setEvents(prev => prev?.some(ev => ev.$id === payload.$id) ? prev : [...(prev ?? []), payload]);
+      } else if (events.some(e => e.endsWith('.update'))) {
+        setEvents(prev => (prev ?? []).map(ev => ev.$id === payload.$id ? { ...ev, ...payload } : ev));
+      } else if (events.some(e => e.endsWith('.delete'))) {
+        setEvents(prev => (prev ?? []).filter(ev => ev.$id !== payload.$id));
+      }
+    });
+    return () => unsubscribe();
   }, [houseTeamId]);
 
   return (

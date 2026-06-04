@@ -12,7 +12,8 @@ import { useAuth } from '@/context/auth';
 import { useHouse } from '@/context/house';
 import { spacing } from '@/theme/theme';
 import { useColorScheme } from 'react-native';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Models } from 'react-native-appwrite';
 import { RolePermissions, DEFAULT_ROLE_PERMISSIONS, DEFAULT_TAB_PERMISSION, TabPermission } from '@/context/db_models';
 import {
@@ -80,6 +81,15 @@ export default function SettingsScreen() {
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Refresh member names/avatars whenever this tab comes into focus.
+  // Account-level changes (name, avatar prefs) don't emit membership events,
+  // so a focus-based re-fetch is the reliable way to pick them up.
+  useFocusEffect(
+    useCallback(() => {
+      refreshMembers();
+    }, [])
+  );
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const houseCode = houseTeamId

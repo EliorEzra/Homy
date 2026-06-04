@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState, createContext } from "react";
-import { team, functions, databases } from "@/lib/appwrite";
-import { Models, ID, Query } from "react-native-appwrite";
+import { team, functions, databases, client } from "@/lib/appwrite";
+import { Models, ID, Query, Channel } from "react-native-appwrite";
 import { DatabaseIDs, RolePermissions } from "./db_models";
 import { useAuth } from "./auth";
 
@@ -466,6 +466,32 @@ export function HouseProvider({ children }: ProviderProps) {
     setHouse(null); setHouseTeamId(null); setMembers([]);
     setHouseRoles([]); setRoleOrder([]); setRolePermissions({}); setHierarchyEnabled(false);
   }
+
+  // ─── Realtime: team prefs + membership changes ────────────────────────────
+  useEffect(() => {
+    if (!houseTeamId) return;
+    const channels = [Channel.team(houseTeamId).toString(), "memberships"];
+    const unsubscribe = client.subscribe(channels, (response) => {
+      const events = response.events as string[];
+      const payload = response.payload as any;
+      const isMembership = events.some(e => e.includes('memberships'));
+      if (isMembership) {
+        // Ignore memberships from other teams (global channel sees them all).
+        if (payload?.teamId && payload.teamId !== houseTeamId) return;
+        if (events.some(e => e.endsWith('.create'))) {
+          fetchEnrichedMembers(houseTeamId).then(enriched => setMembers(enriched)).catch(() => {});
+        } else if (events.some(e => e.endsWith('.update'))) {
+          if (payload?.$id) setMembers(prev => prev.map(m => m.$id === payload.$id ? { ...m, ...payload } : m));
+        } else if (events.some(e => e.endsWith('.delete'))) {
+          if (payload?.$id) setMembers(prev => prev.filter(m => m.$id !== payload.$id));
+        }
+      } else if (events.some(e => e.endsWith('.update')) && payload?.prefs) {
+        // Team-level update — roles / hierarchy / permissions changed.
+        applyPrefs(payload.prefs);
+      }
+    });
+    return () => unsubscribe();
+  }, [houseTeamId]);
 
   // ─── Startup: load house from Appwrite ────────────────────────────────────
   useEffect(() => {
