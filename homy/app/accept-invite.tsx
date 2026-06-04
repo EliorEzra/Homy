@@ -155,7 +155,7 @@ export default function AcceptInviteScreen() {
 
         {status === 'has-house' && (
           <View style={styles.center}>
-            <AlertTriangle size={64} color="#e0a500" />
+            <AlertTriangle size={64} color="#c47c2a" />
             <ThemedText style={styles.heading}>You're already in a house</ThemedText>
             <ThemedText style={[styles.msg, { color: mutedColor }]}>
               {isOwner

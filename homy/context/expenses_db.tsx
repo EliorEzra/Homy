@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { databases } from "@/lib/appwrite";
-import { Models, ID, Permission, Role } from "react-native-appwrite";
+import { databases, client } from "@/lib/appwrite";
+import { Models, ID, Permission, Role, Channel } from "react-native-appwrite";
 import { Expense, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
 import { useHouse } from "./house";
@@ -63,7 +63,7 @@ export function ExpensesProvider(props: ProviderProps) {
           ...(houseTeamId ? [Permission.read(Role.team(houseTeamId))] : []),
         ],
       });
-      setExpenses(prev => [
+      setExpenses(prev => (prev ?? []).some(e => e.$id === rowId) ? (prev ?? []) : [
         { $id: rowId, title: data.title, amount: data.amount ?? 0, paid_by: data.paid_by ?? "", split_with: data.split_with ?? "", date: data.date ?? new Date().toLocaleDateString(), userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row,
         ...(prev ?? []),
       ]);
@@ -93,6 +93,24 @@ export function ExpensesProvider(props: ProviderProps) {
       return;
     }
     getExpenses();
+  }, [houseTeamId]);
+
+  useEffect(() => {
+    if (!houseTeamId) return;
+    const base = Channel.tablesdb(DatabaseIDs.DATABASE).table(DatabaseIDs.EXPENSES).toString();
+    const unsubscribe = client.subscribe([base, `${base}.rows`], (response) => {
+      const events = response.events as string[];
+      const payload = response.payload as Models.Row;
+      if (!payload || payload.team_id !== houseTeamId) return;
+      if (events.some(e => e.endsWith('.create'))) {
+        setExpenses(prev => prev?.some(e => e.$id === payload.$id) ? prev : [payload, ...(prev ?? [])]);
+      } else if (events.some(e => e.endsWith('.update'))) {
+        setExpenses(prev => (prev ?? []).map(e => e.$id === payload.$id ? { ...e, ...payload } : e));
+      } else if (events.some(e => e.endsWith('.delete'))) {
+        setExpenses(prev => (prev ?? []).filter(e => e.$id !== payload.$id));
+      }
+    });
+    return () => unsubscribe();
   }, [houseTeamId]);
 
   return (

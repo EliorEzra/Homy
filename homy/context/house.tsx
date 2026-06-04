@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState, createContext } from "react";
-import { team, functions, databases } from "@/lib/appwrite";
-import { Models, ID, Query } from "react-native-appwrite";
+import { team, functions, databases, client } from "@/lib/appwrite";
+import { Models, ID, Query, Channel } from "react-native-appwrite";
 import { DatabaseIDs, RolePermissions } from "./db_models";
 import { useAuth } from "./auth";
 
@@ -62,20 +62,39 @@ const GET_MEMBERS_FUNCTION_ID =
  * function fails (e.g. not deployed yet) so the app keeps working.
  */
 async function fetchEnrichedMembers(teamId: string): Promise<Models.Membership[]> {
-  try {
-    const exec = await functions.createExecution(
-      GET_MEMBERS_FUNCTION_ID,
-      JSON.stringify({ teamId }),
-      false
-    );
-    if (exec.status === 'completed') {
-      const result = JSON.parse(exec.responseBody);
-      if (result.success) return result.members as Models.Membership[];
+  // Retry up to 3 times with increasing delays — mirrors the auth startup retry
+  // pattern to handle intermittent network blips on self-hosted dynv6 setups.
+  const delays = [0, 1500, 3000];
+  for (const delay of delays) {
+    try {
+      if (delay > 0) await new Promise(r => setTimeout(r, delay));
+      const exec = await functions.createExecution(
+        GET_MEMBERS_FUNCTION_ID,
+        JSON.stringify({ teamId }),
+        false
+      );
+      if (exec.status === 'completed' && exec.responseBody) {
+        try {
+          const result = JSON.parse(exec.responseBody);
+          if (result.success && Array.isArray(result.members)) {
+            return result.members as Models.Membership[];
+          }
+        } catch (_) {
+          // responseBody wasn't valid JSON — try again
+        }
+      }
+    } catch (_) {
+      // Network error — try again after delay
     }
-  } catch (_) {}
-  // Fallback: raw memberships (names may be missing for non-owners)
-  const res = await team.listMemberships({ teamId });
-  return res.memberships;
+  }
+  // All retries exhausted — fall back to raw SDK memberships.
+  // Names may be missing for non-owners in Appwrite 1.9 but at least we show something.
+  try {
+    const res = await team.listMemberships({ teamId });
+    return res.memberships;
+  } catch (_) {
+    return [];
+  }
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -104,16 +123,26 @@ export function HouseProvider({ children }: ProviderProps) {
   // ─── House loader ─────────────────────────────────────────────────────────
   // Fetches team metadata + memberships for a known teamId and sets all state.
   // Used both by the startup effect and by joinHouseByCode.
+  //
+  // Two-phase load:
+  //   1. Fetch team info + raw memberships in parallel — fast, unblocks the UI.
+  //   2. Enrich members with real names/emails via Appwrite Function in background
+  //      — does NOT block phase 1, updates state when ready.
   async function loadHouseFromTeam(teamId: string) {
-    const [houseTeam, ownMemberships, allMemberships] = await Promise.all([
+    const [houseTeam, ownMemberships, rawMemberships] = await Promise.all([
       team.get({ teamId }),
       team.listMemberships({ teamId, queries: [Query.equal('userId', user!.$id)] }),
-      fetchEnrichedMembers(teamId), // enriched names/emails via Appwrite Function
+      team.listMemberships({ teamId }),
     ]);
     setHouse(ownMemberships.memberships[0] ?? null);
     setHouseTeamId(teamId);
     applyPrefs(houseTeam.prefs);
-    setMembers(allMemberships);
+    setMembers(rawMemberships.memberships);
+
+    // Enrich names/emails in background — updates state when the function returns.
+    fetchEnrichedMembers(teamId)
+      .then(enriched => setMembers(enriched))
+      .catch(() => {});
   }
 
   // ─── Fallback refresh ─────────────────────────────────────────────────────
@@ -437,6 +466,42 @@ export function HouseProvider({ children }: ProviderProps) {
     setHouse(null); setHouseTeamId(null); setMembers([]);
     setHouseRoles([]); setRoleOrder([]); setRolePermissions({}); setHierarchyEnabled(false);
   }
+
+  // ─── Realtime: team prefs + membership changes ────────────────────────────
+  useEffect(() => {
+    if (!houseTeamId) return;
+    const channels = [Channel.team(houseTeamId).toString(), "memberships"];
+    const unsubscribe = client.subscribe(channels, (response) => {
+      const events = response.events as string[];
+      const payload = response.payload as any;
+      const isMembership = events.some(e => e.includes('memberships'));
+      if (isMembership) {
+        // Ignore memberships from other teams (global channel sees them all).
+        if (payload?.teamId && payload.teamId !== houseTeamId) return;
+        const isMine = payload?.userId === user?.$id;
+        if (events.some(e => e.endsWith('.create'))) {
+          fetchEnrichedMembers(houseTeamId).then(enriched => setMembers(enriched)).catch(() => {});
+        } else if (events.some(e => e.endsWith('.update'))) {
+          if (payload?.$id) setMembers(prev => prev.map(m => m.$id === payload.$id ? { ...m, ...payload } : m));
+          // If it's my own membership (e.g. I was just made owner), refresh `house`
+          // so owner-gated UI / permissions update immediately.
+          if (isMine && payload?.$id) setHouse(prev => prev ? { ...prev, ...payload } : prev);
+        } else if (events.some(e => e.endsWith('.delete'))) {
+          if (payload?.$id) setMembers(prev => prev.filter(m => m.$id !== payload.$id));
+          // If I was the one removed, clear my house state so I'm kicked out cleanly.
+          if (isMine) clearHouseState();
+        }
+      } else if (events.some(e => e.endsWith('.update'))) {
+        // Team-level update — roles / hierarchy / permissions changed.
+        // The realtime payload may omit the full prefs object, so re-fetch the
+        // team to get authoritative prefs rather than trusting payload.prefs.
+        console.log("[RT-TEAM] update received, events:", JSON.stringify(events), "hasPrefs:", !!payload?.prefs); // TEMP
+        if (payload?.prefs) applyPrefs(payload.prefs);
+        team.get({ teamId: houseTeamId }).then(t => applyPrefs(t.prefs)).catch(() => {});
+      }
+    });
+    return () => unsubscribe();
+  }, [houseTeamId, user?.$id]);
 
   // ─── Startup: load house from Appwrite ────────────────────────────────────
   useEffect(() => {

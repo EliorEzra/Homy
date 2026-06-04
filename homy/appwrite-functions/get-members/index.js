@@ -101,17 +101,21 @@ module.exports = async ({ req, res, log }) => {
     return res.json({ success: false, error: 'Not a member of this team' }, 403);
   }
 
-  // 2. Enrich each membership with the user's actual name + email
+  // 2. Enrich each membership — user info and prefs fetched in parallel per member.
+  //    Each call has its own .catch() so one failure never prevents the other.
+  const noResult = { status: 0, body: {} };
   const enriched = await Promise.all(memberships.map(async (m) => {
-    try {
-      const u = await call('GET', `/v1/users/${m.userId}`);
-      if (u.status === 200) {
-        return { ...m, userName: u.body.name || m.userName || '', userEmail: u.body.email || m.userEmail || '' };
-      }
-    } catch (e) {
-      log(`enrich error for ${m.userId}: ${e.message}`);
-    }
-    return m;
+    const [u, p] = await Promise.all([
+      call('GET', `/v1/users/${m.userId}`).catch(e => { log(`user error ${m.userId}: ${e.message}`); return noResult; }),
+      call('GET', `/v1/users/${m.userId}/prefs`).catch(e => { log(`prefs error ${m.userId}: ${e.message}`); return noResult; }),
+    ]);
+    return {
+      ...m,
+      userName:    (u.status === 200 && u.body && u.body.name)         || m.userName  || '',
+      userEmail:   (u.status === 200 && u.body && u.body.email)        || m.userEmail || '',
+      avatarColor: (p.status === 200 && p.body && p.body.avatarColor)  || '',
+      avatarIcon:  (p.status === 200 && p.body && p.body.avatarIcon)   || '',
+    };
   }));
 
   return res.json({ success: true, members: enriched });

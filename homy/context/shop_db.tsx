@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { databases } from "@/lib/appwrite";
-import { Models, ID, Permission, Role } from "react-native-appwrite";
+import { databases, client } from "@/lib/appwrite";
+import { Models, ID, Permission, Role, Channel } from "react-native-appwrite";
 import { ShopItem, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
 import { useHouse } from "./house";
@@ -64,7 +64,7 @@ export function ShopProvider(props: ProviderProps) {
           ...(houseTeamId ? [Permission.read(Role.team(houseTeamId))] : []),
         ],
       });
-      setShopItems(prev => [
+      setShopItems(prev => (prev ?? []).some(i => i.$id === rowId) ? (prev ?? []) : [
         { $id: rowId, name: data.name, quantity: data.quantity ?? "1", category: data.category ?? "Other", checked: false, userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row,
         ...(prev ?? []),
       ]);
@@ -114,6 +114,24 @@ export function ShopProvider(props: ProviderProps) {
       return;
     }
     getShopItems();
+  }, [houseTeamId]);
+
+  useEffect(() => {
+    if (!houseTeamId) return;
+    const base = Channel.tablesdb(DatabaseIDs.DATABASE).table(DatabaseIDs.SHOP_ITEMS).toString();
+    const unsubscribe = client.subscribe([base, `${base}.rows`], (response) => {
+      const events = response.events as string[];
+      const payload = response.payload as Models.Row;
+      if (!payload || payload.team_id !== houseTeamId) return;
+      if (events.some(e => e.endsWith('.create'))) {
+        setShopItems(prev => prev?.some(i => i.$id === payload.$id) ? prev : [payload, ...(prev ?? [])]);
+      } else if (events.some(e => e.endsWith('.update'))) {
+        setShopItems(prev => (prev ?? []).map(i => i.$id === payload.$id ? { ...i, ...payload } : i));
+      } else if (events.some(e => e.endsWith('.delete'))) {
+        setShopItems(prev => (prev ?? []).filter(i => i.$id !== payload.$id));
+      }
+    });
+    return () => unsubscribe();
   }, [houseTeamId]);
 
   return (

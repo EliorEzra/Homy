@@ -1,6 +1,7 @@
 import { StyleSheet, View, FlatList, Pressable, TextInput, Alert } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { FadeScreen } from '@/components/fade-screen';
 import { ThemedCard } from '@/components/themed-card';
 import { ThemedBadge } from '@/components/themed-badge';
 import { ThemedEmptyState } from '@/components/themed-empty-state';
@@ -16,8 +17,8 @@ type Category = 'Produce' | 'Dairy' | 'Meat' | 'Bakery' | 'Frozen' | 'Drinks' | 
 const CATEGORIES: Category[] = ['Produce', 'Dairy', 'Meat', 'Bakery', 'Frozen', 'Drinks', 'Other'];
 
 const CATEGORY_COLORS: Record<Category, string> = {
-  Produce: '#1fc16b', Dairy: '#4d00ff', Meat: '#ff3748',
-  Bakery: '#e0a500', Frozen: '#0ea5e9', Drinks: '#8b5cf6', Other: '#6b7280',
+  Produce: '#1fc16b', Dairy: '#106d8f', Meat: '#e03040',
+  Bakery: '#c47c2a', Frozen: '#0ea5e9', Drinks: '#7c6bbf', Other: '#6b7280',
 };
 
 export default function ShopScreen() {
@@ -30,6 +31,7 @@ export default function ShopScreen() {
   const [newCategory, setNewCategory] = useState<Category>('Other');
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const borderColor = useThemeColor({}, 'inputBorder');
+  const cardBg = useThemeColor({}, 'cardBackground');
   const inputBg = useThemeColor({}, 'inputBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
   const textColor = useThemeColor({}, 'text');
@@ -61,6 +63,7 @@ export default function ShopScreen() {
   };
 
   return (
+    <FadeScreen>
     <ThemedView style={styles.container}>
       <ThemedView style={styles.header}>
         <ThemedText type="title">Shopping List</ThemedText>
@@ -74,7 +77,7 @@ export default function ShopScreen() {
       <View style={styles.filterRow}>
         {(['all', 'pending', 'done'] as const).map(f => (
           <Pressable key={f} onPress={() => setFilter(f)}
-            style={[styles.filterChip, { borderColor }, filter === f && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
+            style={[styles.filterChip, { borderColor, backgroundColor: cardBg }, filter === f && { backgroundColor: primaryColor, borderColor: primaryColor }]}>
             <ThemedText style={[styles.filterText, filter === f && styles.filterTextActive]}>
               {f === 'all' ? 'All' : f === 'pending' ? 'Pending' : 'Done'}
             </ThemedText>
@@ -105,7 +108,7 @@ export default function ShopScreen() {
           <View style={styles.catRow}>
             {CATEGORIES.map(c => (
               <Pressable key={c} onPress={() => setNewCategory(c)}
-                style={[styles.catChip, { borderColor: CATEGORY_COLORS[c] }, newCategory === c && { backgroundColor: CATEGORY_COLORS[c] }]}>
+                style={[styles.catChip, { borderColor: CATEGORY_COLORS[c], backgroundColor: inputBg }, newCategory === c && { backgroundColor: CATEGORY_COLORS[c] }]}>
                 <ThemedText style={[styles.catText, { color: newCategory === c ? 'white' : CATEGORY_COLORS[c] }]}>{c}</ThemedText>
               </Pressable>
             ))}
@@ -127,7 +130,7 @@ export default function ShopScreen() {
         <ThemedEmptyState
           title={filter === 'all' ? 'List is Empty' : filter === 'pending' ? 'Nothing Pending' : 'Nothing Done Yet'}
           description={filter === 'all' ? 'Tap + to add items to your list' : 'Keep up the great work!'}
-          icon={<ShoppingCart size={64} color="#4d00ff" opacity={0.5} />}
+          icon={<ShoppingCart size={64} color="#106d8f" opacity={0.5} />}
           action={filter === 'all' && canCreate('shop') ? (
             <Pressable onPress={() => setAdding(true)} style={[styles.emptyAdd, { backgroundColor: primaryColor }]}>
               <ThemedText style={styles.emptyAddText}>+ Add Item</ThemedText>
@@ -178,6 +181,7 @@ export default function ShopScreen() {
         </Pressable>
       )}
     </ThemedView>
+    </FadeScreen>
   );
 }
 

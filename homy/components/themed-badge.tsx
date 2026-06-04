@@ -7,12 +7,12 @@ type BadgeVariant = "primary" | "secondary" | "success" | "warning" | "error" | 
 type BadgeSize = "sm" | "md";
 
 const VARIANT_COLORS: Record<BadgeVariant, { bg: string; text: string }> = {
-  primary:   { bg: "#fff0e8", text: "#ff5c02" },
-  secondary: { bg: "#ede8ff", text: "#4d00ff" },
+  primary:   { bg: "#ddeef5", text: "#106d8f" },
+  secondary: { bg: "#e8f4f9", text: "#61b2cf" },
   success:   { bg: "#e8f9f0", text: "#1fc16b" },
   warning:   { bg: "#fff9e0", text: "#dfb400" },
-  error:     { bg: "#ffe8ea", text: "#d00416" },
-  neutral:   { bg: "#f0f0f0", text: "#777777" },
+  error:     { bg: "#ffe8ea", text: "#e03040" },
+  neutral:   { bg: "#edf0f4", text: "#686c70" },
 };
 
 export type ThemedBadgeProps = {

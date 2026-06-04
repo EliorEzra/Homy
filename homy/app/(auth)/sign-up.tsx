@@ -1,102 +1,136 @@
-import { StyleSheet, Alert, View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import {
+  StyleSheet, Alert, View, Image, TextInput,
+  KeyboardAvoidingView, Platform, ScrollView, Pressable,
+} from "react-native";
 import { useAuth } from "@/context/auth";
 import { Stack, useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { ThemedInput } from "@/components/themed-input";
 import { ThemedButton } from '@/components/themed-button';
-import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from "@/components/themed-text";
-import { ThemedCard } from "@/components/themed-card";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { spacing } from "@/theme/theme";
-import { Home, User, Mail, Lock } from "lucide-react-native";
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 
 export default function SignUp() {
   const { signUp } = useAuth();
   const router = useRouter();
   const primaryColor = useThemeColor({}, 'buttonBackground');
   const mutedColor = useThemeColor({}, 'tabIconDefault');
+  const cardBg = useThemeColor({}, 'cardBackground');
+  const borderColor = useThemeColor({}, 'inputBorder');
+  const textColor = useThemeColor({}, 'text');
+  const inputBg = useThemeColor({}, 'inputBackground');
 
   const emailRef = useRef("");
   const passwordRef = useRef("");
   const confirmPasswordRef = useRef("");
   const userNameRef = useRef("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <ThemedView style={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <View style={[styles.root, { backgroundColor: primaryColor }]}>
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <View style={[styles.hero, { backgroundColor: primaryColor }]}>
+          <Image
+            source={require('@/assets/images/logoHomy.png')}
+            style={styles.heroLogo}
+            resizeMode="contain"
+            tintColor="white"
+          />
+          <ThemedText style={styles.heroTitle}>Join Homy</ThemedText>
+        </View>
 
-            <View style={styles.logoSection}>
-              <View style={[styles.logoIcon, { backgroundColor: primaryColor }]}>
-                <Home size={32} color="white" />
+        {/* ── Form sheet ───────────────────────────────────────────────── */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.sheetWrapper}
+        >
+          <ScrollView
+            contentContainerStyle={[styles.sheet, { backgroundColor: cardBg }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <ThemedText style={[styles.formTitle, { color: textColor }]}>Create Account</ThemedText>
+
+            {/* Username */}
+            <View style={styles.fieldGroup}>
+              <View style={styles.fieldLabel}>
+                <User size={15} color={primaryColor} />
+                <ThemedText style={[styles.label, { color: mutedColor }]}>Name</ThemedText>
               </View>
-              <ThemedText style={styles.logoText}>HOMY</ThemedText>
-              <ThemedText style={[styles.tagline, { color: mutedColor }]}>Your household, organized</ThemedText>
+              <View style={[styles.inputRow, { borderColor, backgroundColor: inputBg }]}>
+                <TextInput
+                  style={[styles.input, { color: textColor }]}
+                  placeholder="Your name"
+                  placeholderTextColor={mutedColor}
+                  autoCapitalize="words"
+                  onChangeText={t => { userNameRef.current = t; }}
+                />
+              </View>
             </View>
 
-            <ThemedText style={styles.title}>Create an account</ThemedText>
-            <ThemedText style={[styles.subtitle, { color: mutedColor }]}>
-              Join Homy and start organizing your household.
-            </ThemedText>
-
-            <ThemedCard variant="elevated" style={styles.card}>
-              <View style={styles.field}>
-                <View style={styles.fieldHeader}>
-                  <User size={16} color={primaryColor} />
-                  <ThemedText style={styles.label}>Username</ThemedText>
-                </View>
-                <ThemedInput
-                  placeholder="Your name"
-                  autoCapitalize="words"
-                  nativeID="userName"
-                  onChangeText={(text) => { userNameRef.current = text; }}
-                />
+            {/* Email */}
+            <View style={styles.fieldGroup}>
+              <View style={styles.fieldLabel}>
+                <Mail size={15} color={primaryColor} />
+                <ThemedText style={[styles.label, { color: mutedColor }]}>Email</ThemedText>
               </View>
-
-              <View style={styles.field}>
-                <View style={styles.fieldHeader}>
-                  <Mail size={16} color={primaryColor} />
-                  <ThemedText style={styles.label}>Email</ThemedText>
-                </View>
-                <ThemedInput
+              <View style={[styles.inputRow, { borderColor, backgroundColor: inputBg }]}>
+                <TextInput
+                  style={[styles.input, { color: textColor }]}
                   placeholder="you@example.com"
+                  placeholderTextColor={mutedColor}
+                  keyboardType="email-address"
                   autoCapitalize="none"
-                  nativeID="email"
-                  type="email"
-                  onChangeText={(text) => { emailRef.current = text; }}
+                  autoCorrect={false}
+                  onChangeText={t => { emailRef.current = t; }}
                 />
               </View>
+            </View>
 
-              <View style={styles.field}>
-                <View style={styles.fieldHeader}>
-                  <Lock size={16} color={primaryColor} />
-                  <ThemedText style={styles.label}>Password</ThemedText>
-                </View>
-                <ThemedInput
+            {/* Password */}
+            <View style={styles.fieldGroup}>
+              <View style={styles.fieldLabel}>
+                <Lock size={15} color={primaryColor} />
+                <ThemedText style={[styles.label, { color: mutedColor }]}>Password</ThemedText>
+              </View>
+              <View style={[styles.inputRow, { borderColor, backgroundColor: inputBg }]}>
+                <TextInput
+                  style={[styles.input, { color: textColor, flex: 1 }]}
                   placeholder="At least 8 characters"
-                  nativeID="password"
-                  type="password"
-                  onChangeText={(text) => { passwordRef.current = text; }}
+                  placeholderTextColor={mutedColor}
+                  secureTextEntry={!showPassword}
+                  onChangeText={t => { passwordRef.current = t; }}
                 />
+                <Pressable onPress={() => setShowPassword(v => !v)} hitSlop={8} style={styles.eyeBtn}>
+                  {showPassword ? <EyeOff size={18} color={mutedColor} /> : <Eye size={18} color={mutedColor} />}
+                </Pressable>
               </View>
+            </View>
 
-              <View style={styles.field}>
-                <View style={styles.fieldHeader}>
-                  <Lock size={16} color={primaryColor} />
-                  <ThemedText style={styles.label}>Confirm Password</ThemedText>
-                </View>
-                <ThemedInput
-                  placeholder="Repeat your password"
-                  nativeID="confirmPassword"
-                  type="password"
-                  onChangeText={(text) => { confirmPasswordRef.current = text; }}
-                />
+            {/* Confirm password */}
+            <View style={styles.fieldGroup}>
+              <View style={styles.fieldLabel}>
+                <Lock size={15} color={primaryColor} />
+                <ThemedText style={[styles.label, { color: mutedColor }]}>Confirm Password</ThemedText>
               </View>
-            </ThemedCard>
+              <View style={[styles.inputRow, { borderColor, backgroundColor: inputBg }]}>
+                <TextInput
+                  style={[styles.input, { color: textColor, flex: 1 }]}
+                  placeholder="Repeat your password"
+                  placeholderTextColor={mutedColor}
+                  secureTextEntry={!showConfirm}
+                  onChangeText={t => { confirmPasswordRef.current = t; }}
+                />
+                <Pressable onPress={() => setShowConfirm(v => !v)} hitSlop={8} style={styles.eyeBtn}>
+                  {showConfirm ? <EyeOff size={18} color={mutedColor} /> : <Eye size={18} color={mutedColor} />}
+                </Pressable>
+              </View>
+            </View>
 
             <ThemedButton
               onPress={async () => {
@@ -105,11 +139,11 @@ export default function SignUp() {
                   return;
                 }
                 if (passwordRef.current !== confirmPasswordRef.current) {
-                  Alert.alert("Password Mismatch", "Passwords do not match. Please try again.");
+                  Alert.alert("Password Mismatch", "Passwords do not match.");
                   return;
                 }
                 if (passwordRef.current.length < 8) {
-                  Alert.alert("Weak Password", "Password must be at least 8 characters long.");
+                  Alert.alert("Weak Password", "Password must be at least 8 characters.");
                   return;
                 }
                 setLoading(true);
@@ -124,43 +158,61 @@ export default function SignUp() {
                   Alert.alert("Sign Up Error", error?.message);
                 }
               }}
-              title={loading ? "Creating account..." : "Create Account"}
+              title={loading ? "Creating account…" : "Create Account"}
               disabled={loading}
               style={styles.button}
             />
 
             <View style={styles.footer}>
               <ThemedText style={[styles.footerText, { color: mutedColor }]}>Already have an account?</ThemedText>
-              <ThemedText
-                style={[styles.footerLink, { color: primaryColor }]}
-                onPress={() => router.replace("/sign-in")}
-              >
-                Sign in
-              </ThemedText>
+              <Pressable onPress={() => router.replace("/sign-in")} hitSlop={8}>
+                <ThemedText style={[styles.footerLink, { color: primaryColor }]}>Sign in</ThemedText>
+              </Pressable>
             </View>
-
           </ScrollView>
         </KeyboardAvoidingView>
-      </ThemedView>
+      </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scroll: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl },
-  logoSection: { alignItems: 'center', marginBottom: spacing.xl },
-  logoIcon: { width: 64, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  logoText: { fontSize: 28, fontWeight: '900', letterSpacing: 4, marginBottom: spacing.xs },
-  tagline: { fontSize: 14 },
-  title: { fontSize: 24, fontWeight: '800', marginBottom: spacing.sm },
-  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: spacing.lg },
-  card: { gap: spacing.lg, marginBottom: spacing.lg },
-  field: { gap: spacing.xs },
-  fieldHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  label: { fontWeight: '700', fontSize: 15 },
-  button: { marginTop: spacing.sm },
-  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xl },
+  root: { flex: 1 },
+  hero: {
+    paddingTop: 44,
+    paddingBottom: 48,
+    paddingHorizontal: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  heroLogo: { width: 100, height: 100, marginBottom: spacing.xs },
+  heroTitle: { fontSize: 28, fontWeight: '800', color: 'white', textAlign: 'center' },
+  heroSub: { fontSize: 15, color: 'rgba(255,255,255,0.75)', textAlign: 'center' },
+  sheetWrapper: { flex: 1, marginTop: -28 },
+  sheet: {
+    flexGrow: 1,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing['2xl'],
+    paddingBottom: spacing['5xl'],
+  },
+  formTitle: { fontSize: 22, fontWeight: '800', marginBottom: spacing.xl },
+  fieldGroup: { marginBottom: spacing.lg },
+  fieldLabel: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs },
+  label: { fontSize: 13, fontWeight: '600' },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    minHeight: 50,
+  },
+  input: { flex: 1, fontSize: 15, paddingVertical: spacing.sm },
+  eyeBtn: { paddingLeft: spacing.sm },
+  button: { marginTop: spacing.sm, marginBottom: spacing.lg },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.xs },
   footerText: { fontSize: 14 },
   footerLink: { fontSize: 14, fontWeight: '700' },
 });

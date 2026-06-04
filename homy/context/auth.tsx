@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import { Appearance } from "react-native";
 import { account } from "@/lib/appwrite";
 import { Models, ID } from "react-native-appwrite";
 
@@ -23,6 +24,9 @@ interface AuthContextValue {
   verifyEmail: (userId: string, secret: string, email: string, password: string) => Promise<SignInResponse>;
   resendVerification: (userId: string, email: string) => Promise<{ error?: Error }>;
   signOut: () => Promise<SignOutResponse>;
+  updateName: (name: string) => Promise<{ error?: any }>;
+  updatePassword: (newPassword: string, oldPassword: string) => Promise<{ error?: any }>;
+  updatePrefs: (prefs: Record<string, any>) => Promise<{ error?: any }>;
   user: Models.User<Models.Preferences> | null;
   unverifiedUser: Models.User<Models.Preferences> | null;
   authInitialized: boolean;
@@ -64,6 +68,7 @@ export function AuthProvider(props: ProviderProps) {
       if (fetchedUser) {
         if (fetchedUser.emailVerification) {
           setAuth(fetchedUser);
+          applyThemePrefs(fetchedUser);
         } else {
           setUnverifiedUser(fetchedUser);
           setAuth(null);
@@ -97,6 +102,7 @@ export function AuthProvider(props: ProviderProps) {
       if (fetchedUser.emailVerification) {
         setAuth(fetchedUser);
         setUnverifiedUser(null);
+        applyThemePrefs(fetchedUser);
       } else {
         setAuth(null);
         setUnverifiedUser(fetchedUser);
@@ -142,8 +148,39 @@ export function AuthProvider(props: ProviderProps) {
     }
   };
 
+  /** Apply the saved theme preference to Appearance so it persists across sessions. */
+  function applyThemePrefs(u: Models.User<Models.Preferences>) {
+    const theme = u.prefs?.theme as 'light' | 'dark' | undefined;
+    if (theme === 'dark' || theme === 'light') Appearance.setColorScheme(theme);
+  }
+
+  const updateName = async (name: string): Promise<{ error?: any }> => {
+    try {
+      await account.updateName({ name });
+      setAuth(prev => prev ? { ...prev, name } : null);
+      return {};
+    } catch (error) { return { error }; }
+  };
+
+  const updatePassword = async (newPassword: string, oldPassword: string): Promise<{ error?: any }> => {
+    try {
+      await account.updatePassword({ password: newPassword, oldPassword });
+      return {};
+    } catch (error) { return { error }; }
+  };
+
+  /** Merges new keys into existing prefs so nothing is accidentally cleared. */
+  const updatePrefs = async (newPrefs: Record<string, any>): Promise<{ error?: any }> => {
+    try {
+      const merged = { ...(user?.prefs ?? {}), ...newPrefs };
+      await account.updatePrefs(merged);
+      setAuth(prev => prev ? { ...prev, prefs: merged as Models.Preferences } : null);
+      return {};
+    } catch (error) { return { error }; }
+  };
+
   return (
-    <AuthContext.Provider value={{ signIn: login, signOut: logout, signUp: createAcount, verifyEmail, resendVerification, user, unverifiedUser, authInitialized }}>
+    <AuthContext.Provider value={{ signIn: login, signOut: logout, signUp: createAcount, verifyEmail, resendVerification, updateName, updatePassword, updatePrefs, user, unverifiedUser, authInitialized }}>
       {props.children}
     </AuthContext.Provider>
   );

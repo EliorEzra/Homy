@@ -6,7 +6,7 @@ client
   .setProject(process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID as string)
   .setPlatform(process.env.EXPO_PUBLIC_APPWRITE_PLATFORM_NAME as string);
 
-
+export { client };
 export const account = new Account(client);
 export const team = new Teams(client);
 export const databases = new TablesDB(client);

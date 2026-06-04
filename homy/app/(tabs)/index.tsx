@@ -1,4 +1,5 @@
 import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
+import { FadeScreen } from '@/components/fade-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedCard } from '@/components/themed-card';
@@ -9,7 +10,7 @@ import { useTasks } from '@/context/tasks_db';
 import { useEvents } from '@/context/events_db';
 import { spacing } from '@/theme/theme';
 import { useRouter } from 'expo-router';
-import { Calendar, CheckCircle, ShoppingCart, DollarSign, ArrowRight } from 'lucide-react-native';
+import { Calendar, CheckCircle, ShoppingCart, DollarSign } from 'lucide-react-native';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ADJECTIVES = ['gentle', 'bright', 'lovely', 'fine', 'great', 'wonderful', 'beautiful'];
@@ -19,7 +20,6 @@ function QuickCard({ label, icon, color, onPress }: { label: string; icon: React
     <Pressable onPress={onPress} style={[styles.quickCard, { backgroundColor: color }]}>
       <View style={styles.quickCardIcon}>{icon}</View>
       <ThemedText style={styles.quickCardLabel}>{label}</ThemedText>
-      <ArrowRight size={14} color="rgba(255,255,255,0.7)" />
     </Pressable>
   );
 }
@@ -65,6 +65,7 @@ export default function HomeScreen() {
   const userName = user?.name ? user.name.charAt(0).toUpperCase() + user.name.slice(1) : user?.email?.split('@')[0] || 'there';
 
   return (
+    <FadeScreen>
     <ThemedView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
@@ -76,10 +77,10 @@ export default function HomeScreen() {
 
         {/* Quick Nav Cards */}
         <View style={styles.quickGrid}>
-          <QuickCard label="Tasks" icon={<CheckCircle size={22} color="white" />} color="#ff5c02" onPress={() => router.push('/(tabs)/tasks')} />
-          <QuickCard label="Shop" icon={<ShoppingCart size={22} color="white" />} color="#4d00ff" onPress={() => router.push('/(tabs)/shop')} />
-          <QuickCard label="Finances" icon={<DollarSign size={22} color="white" />} color="#1fc16b" onPress={() => router.push('/(tabs)/finances')} />
-          <QuickCard label="Calendar" icon={<Calendar size={22} color="white" />} color="#e0a500" onPress={() => router.push('/(tabs)/calendar')} />
+          <QuickCard label="Tasks" icon={<CheckCircle size={24} color="white" />} color="#106d8f" onPress={() => router.push('/(tabs)/tasks')} />
+          <QuickCard label="Shop" icon={<ShoppingCart size={24} color="white" />} color="#1a8fad" onPress={() => router.push('/(tabs)/shop')} />
+          <QuickCard label="Finances" icon={<DollarSign size={24} color="white" />} color="#1a5276" onPress={() => router.push('/(tabs)/finances')} />
+          <QuickCard label="Calendar" icon={<Calendar size={24} color="white" />} color="#0d7ea8" onPress={() => router.push('/(tabs)/calendar')} />
         </View>
 
         {/* Today's Events */}
@@ -127,6 +128,7 @@ export default function HomeScreen() {
         ))}
       </ScrollView>
     </ThemedView>
+    </FadeScreen>
   );
 }
 
@@ -137,9 +139,9 @@ const styles = StyleSheet.create({
   greetingText: { fontSize: 28, fontWeight: '800', marginBottom: spacing.sm, lineHeight: 34 },
   greetingSubtitle: { fontSize: 14, lineHeight: 20, opacity: 0.65 },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.lg, gap: spacing.md, marginBottom: spacing.xl, marginTop: spacing.md },
-  quickCard: { width: '47%', borderRadius: 14, padding: spacing.md, minHeight: 90, gap: spacing.xs },
-  quickCardIcon: { marginBottom: spacing.xs },
-  quickCardLabel: { color: 'white', fontWeight: '700', fontSize: 15 },
+  quickCard: { width: '47%', borderRadius: 14, padding: spacing.md, minHeight: 92, alignItems: 'center', justifyContent: 'center', gap: spacing.xs + 2 },
+  quickCardIcon: {},
+  quickCardLabel: { color: 'white', fontWeight: '600', fontSize: 14, textAlign: 'center' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
   sectionTitle: { fontSize: 18, fontWeight: '700' },
   viewAll: { fontSize: 12, fontWeight: '600' },

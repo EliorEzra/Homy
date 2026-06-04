@@ -1,66 +1,36 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import { Platform } from 'react-native';
 import { darkModePalette, lightModePalette } from './palette';
 import { typography } from './typography';
-import { spacing } from './spacing';
+import { spacing, radius, shadows } from './spacing';
 
-export { typography, spacing }
+export { typography, spacing, radius, shadows }
 
-// Change the rest to use the palettes
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: lightModePalette.surface,
+    text: '#1c1e20',
+    background: '#e2e8f0',
     icon: lightModePalette.primary[200],
     tabIconDefault: lightModePalette.neutral[600],
-    inputBorderSelected: lightModePalette.secondary.DEFAULT,
-    inputBorder: "#999a9b",
-    inputBackground: '#b9bbbd',
+    inputBorderSelected: lightModePalette.primary.DEFAULT,
+    inputBorder: '#c8cfd8',
+    inputBackground: '#edf1f7',
     buttonBackground: lightModePalette.primary.DEFAULT,
-    buttonTextColor: lightModePalette.neutral[100],
+    buttonTextColor: '#ffffff',
     disabledButtonBackground: lightModePalette.neutral[300],
     disabledButtonTextColor: lightModePalette.neutral[600],
+    cardBackground: '#ffffff',
   },
   dark: {
-    text: '#ECEDEE',
-    background: darkModePalette.surface,
+    text: '#f0f2f4',
+    background: '#111416',
     icon: darkModePalette.primary[200],
     tabIconDefault: darkModePalette.neutral[600],
-    inputBorderSelected: darkModePalette.secondary.DEFAULT,
-    inputBorder: "#878c8f",
-    inputBackground: '#444647',
+    inputBorderSelected: darkModePalette.primary.DEFAULT,
+    inputBorder: '#2e3234',
+    inputBackground: '#0e1117',
     buttonBackground: darkModePalette.primary.DEFAULT,
-    buttonTextColor: darkModePalette.neutral[100],
+    buttonTextColor: '#ffffff',
     disabledButtonBackground: darkModePalette.neutral[300],
     disabledButtonTextColor: darkModePalette.neutral[600],
+    cardBackground: '#1a1e20',
   },
 };
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});

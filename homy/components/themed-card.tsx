@@ -11,7 +11,7 @@ export type ThemedCardProps = ViewProps & {
 }
 
 export function ThemedCard({ style, lightColor, darkColor, variant = "default", children, ...rest }: ThemedCardProps) {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'cardBackground');
   return (
     <View
       style={[styles.container, variant === "elevated" && styles.elevated, variant === "outlined" && styles.outlined, { backgroundColor }, style]}

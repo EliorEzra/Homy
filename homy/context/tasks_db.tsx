@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { databases } from "@/lib/appwrite";
-import { Models, ID, Permission, Role } from "react-native-appwrite";
+import { databases, client } from "@/lib/appwrite";
+import { Models, ID, Permission, Role, Channel } from "react-native-appwrite";
 import { Task, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
 import { useHouse } from "./house";
@@ -34,6 +34,7 @@ interface TasksDBContextValue {
   addTask: (data: Task, permissions: string[]) => Promise<addTaskResponse>;
   updateTask: (taskId: string, data: Task, permissions?: string[]) => Promise<updateTaskResponse>;
   deleteTask: (taskId: string) => Promise<deleteTaskResponse>;
+  clearCompletedTasks: () => Promise<void>;
   tasks: Models.Row[] | null;
 }
 
@@ -87,7 +88,7 @@ export function TasksProvider(props: ProviderProps) {
           ...permissions,
         ],
       });
-      setTasks(prev => [...(prev ?? []), { $id: rowId, task_text: data.task_text, description: data.description ?? "", due_date: data.due_date ?? "", status: data.status ?? "todo", completed: data.completed ?? false, assigned_to: data.assigned_to ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
+      setTasks(prev => (prev ?? []).some(t => t.$id === rowId) ? (prev ?? []) : [...(prev ?? []), { $id: rowId, task_text: data.task_text, description: data.description ?? "", due_date: data.due_date ?? "", status: data.status ?? "todo", completed: data.completed ?? false, assigned_to: data.assigned_to ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
       return { data: {}, error: undefined };
     } catch (error) {
       return { data: undefined, error: error as Error };
@@ -124,6 +125,16 @@ export function TasksProvider(props: ProviderProps) {
     }
   }
 
+  async function clearCompletedTasks(): Promise<void> {
+    const completed = (tasks ?? []).filter(t => t.completed);
+    await Promise.all(
+      completed.map(t =>
+        databases.deleteRow({ databaseId: DatabaseIDs.DATABASE, tableId: DatabaseIDs.TASKS, rowId: t.$id })
+      )
+    );
+    setTasks(prev => (prev ?? []).filter(t => !t.completed));
+  }
+
   useEffect(() => {
     if (!houseTeamId) {
       setTasks([]);
@@ -139,8 +150,26 @@ export function TasksProvider(props: ProviderProps) {
     })();
   }, [houseTeamId]);
 
+  useEffect(() => {
+    if (!houseTeamId) return;
+    const base = Channel.tablesdb(DatabaseIDs.DATABASE).table(DatabaseIDs.TASKS).toString();
+    const unsubscribe = client.subscribe([base, `${base}.rows`], (response) => {
+      const events = response.events as string[];
+      const payload = response.payload as Models.Row;
+      if (!payload || payload.team_id !== houseTeamId) return;
+      if (events.some(e => e.endsWith('.create'))) {
+        setTasks(prev => prev?.some(t => t.$id === payload.$id) ? prev : [...(prev ?? []), payload]);
+      } else if (events.some(e => e.endsWith('.update'))) {
+        setTasks(prev => (prev ?? []).map(t => t.$id === payload.$id ? { ...t, ...payload } : t));
+      } else if (events.some(e => e.endsWith('.delete'))) {
+        setTasks(prev => (prev ?? []).filter(t => t.$id !== payload.$id));
+      }
+    });
+    return () => unsubscribe();
+  }, [houseTeamId]);
+
   return (
-    <TasksContext.Provider value={{ getTasks, addTask, updateTask, deleteTask, tasks }}>
+    <TasksContext.Provider value={{ getTasks, addTask, updateTask, deleteTask, clearCompletedTasks, tasks }}>
       {props.children}
     </TasksContext.Provider>
   );
