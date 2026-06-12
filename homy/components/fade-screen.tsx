@@ -28,7 +28,7 @@ export function FadeScreen({
       return () => {
         opacity.setValue(0);
       };
-    }, [])
+    }, [opacity])
   );
 
   return (

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
-import { spacing, typography } from '@/theme/theme';
+import { spacing } from '@/theme/theme';
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { ThemedCard } from "./themed-card";
 import { ThemedBadge } from "./themed-badge";

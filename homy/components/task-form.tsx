@@ -31,10 +31,6 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-function formatFull(date: Date) {
-  return `${formatDate(date)} · ${formatTime(date)}`;
-}
-
 function parseDueDate(str: string): Date {
   const d = new Date(str);
   return isNaN(d.getTime()) ? new Date() : d;
