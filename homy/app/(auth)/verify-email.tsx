@@ -1,4 +1,4 @@
-import { StyleSheet, Alert, View, Image, KeyboardAvoidingView, Platform, ScrollView, Pressable } from "react-native";
+import { StyleSheet, Alert, View, Image, KeyboardAvoidingView, Platform, ScrollView, Pressable, ImageSourcePropType } from "react-native";
 import { useState } from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ThemedText } from "@/components/themed-text";
@@ -25,33 +25,34 @@ export default function VerifyEmail() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
 
-  const handleVerify = async () => {
+  const handleVerify = () => {
     if (!code || !userId) {
       Alert.alert("Missing Code", "Please enter the verification code sent to your email.");
       return;
     }
     setLoading(true);
-    try {
-      const { data, error } = await verifyEmail(userId, code.trim(), email, password);
-      if (data) {
-        router.replace("/(tabs)");
-      } else {
-        Alert.alert("Verification Error", error?.message || "Invalid code. Please check your email and try again.");
-      }
-    } catch {
-      Alert.alert("Error", "An unexpected error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    verifyEmail(userId, code.trim())
+    .then(({ data, error }) => {
+        if (data) {
+          router.replace("/(tabs)");
+        } else {
+          Alert.alert("Verification Error", error?.message || "Invalid code. Please check your email and try again.");
+        }
+      })
+    .catch(() => Alert.alert("Error", "An unexpected error occurred. Please try again."))
+    .finally(() => setLoading(false))
   };
 
-  const handleResend = async () => {
+  const handleResend = () => {
     if (!userId || !email) return;
     setResending(true);
-    const { error } = await resendVerification(userId, email);
-    setResending(false);
-    if (error) Alert.alert("Error", error.message);
-    else Alert.alert("Code Sent", `A new verification code was sent to ${email}.`);
+    resendVerification(userId, email)
+    .then(({error}) => {
+      setResending(false);
+      if (error) Alert.alert("Error", error.message);
+      else Alert.alert("Code Sent", `A new verification code was sent to ${email}.`);
+    })
+    .catch((err) => console.log("Unexpected error occurred in handleResend", err))
   };
 
   return (
@@ -61,7 +62,7 @@ export default function VerifyEmail() {
         {/* Hero */}
         <View style={[styles.hero, { backgroundColor: primaryColor }]}>
           <Image
-            source={require('@/assets/images/logoHomy.png')}
+            source={require('@/assets/images/logoHomy.png') as ImageSourcePropType}
             style={styles.heroLogo}
             resizeMode="contain"
             tintColor="white"

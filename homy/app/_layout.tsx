@@ -12,7 +12,7 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Custom navigation themes — these govern the background colour that React
 // Navigation paints on every card / navigator during animations. Without this,
@@ -72,7 +72,7 @@ export function RootLayout() {
   const ready = authInitialized && houseInitialized;
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync();
+    if (ready) SplashScreen.hideAsync().then(() => {}).catch(() => {});
   }, [ready]);
 
   if (!ready) return null;
@@ -81,7 +81,6 @@ export function RootLayout() {
     <Stack screenOptions={{
       headerShown: false,
       contentStyle: { backgroundColor },
-      cardStyle:    { backgroundColor },
     }}>
       <Stack.Protected guard={user == null}>
         <Stack.Screen name="(auth)" />

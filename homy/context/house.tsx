@@ -1,13 +1,15 @@
-import React, { useContext, useEffect, useState, createContext } from "react";
+import React, { useContext, useEffect, useState, createContext, useCallback } from "react";
 import { team, functions, databases, client } from "@/lib/appwrite";
-import { Models, ID, Query, Channel } from "react-native-appwrite";
+import { Models, ID, Query, Channel, ExecutionStatus } from "react-native-appwrite";
 import { DatabaseIDs, RolePermissions } from "./db_models";
 import { useAuth } from "./auth";
+import { HousePreferences } from "./prefs";
+import { joinHouseResponse } from "@/appwrite-functions/function_responses";
 
 // ─── Generic response ─────────────────────────────────────────────────────────
 // All async house functions return { data?, error? } so callers can do:
 //   const { error } = await leaveHouse();
-type HouseResponse<T = {}> = { data?: T; error?: any };
+type HouseResponse<T = unknown> = { data?: T; error?: Error };
 
 // ─── Context shape ────────────────────────────────────────────────────────────
 interface HouseContextValue {
@@ -74,12 +76,14 @@ async function fetchEnrichedMembers(teamId: string): Promise<Models.Membership[]
           async: false
         }
       );
-      if (exec.status === 'completed' && exec.responseBody) {
+      if (exec.status === ExecutionStatus.Completed && exec.responseBody) {
         try {
+          /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
           const result = JSON.parse(exec.responseBody);
           if (result.success && Array.isArray(result.members)) {
             return result.members as Models.Membership[];
           }
+          /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
         } catch (_) {
           // responseBody wasn't valid JSON — try again
         }
@@ -107,13 +111,13 @@ export function HouseProvider({ children }: ProviderProps) {
   const [houseRoles, setHouseRoles] = useState<string[]>([]);
   const [roleOrder, setRoleOrder] = useState<string[]>([]);
   const [rolePermissions, setRolePermissions] = useState<Record<string, RolePermissions>>({});
-  const [hierarchyEnabled, setHierarchyEnabled] = useState(false);
+  const [hierarchyEnabled, setHierarchyEnabled] = useState<boolean>(false);
 
   const { user } = useAuth();
 
   // ─── Prefs helper ─────────────────────────────────────────────────────────
   // Reads roles / roleOrder / rolePermissions from raw team prefs and applies to state.
-  function applyPrefs(prefs: any) {
+  function applyPrefs(prefs: HousePreferences) {
     const roles: string[] = prefs?.roles ?? [];
     setHouseRoles(roles);
     setRoleOrder(prefs?.roleOrder ?? [...roles]);
@@ -129,7 +133,7 @@ export function HouseProvider({ children }: ProviderProps) {
   //   1. Fetch team info + raw memberships in parallel — fast, unblocks the UI.
   //   2. Enrich members with real names/emails via Appwrite Function in background
   //      — does NOT block phase 1, updates state when ready.
-  async function loadHouseFromTeam(teamId: string) {
+  const loadHouseFromTeam = useCallback(async (teamId: string) => {
     const [houseTeam, ownMemberships, rawMemberships] = await Promise.all([
       team.get({ teamId }),
       team.listMemberships({ teamId, queries: [Query.equal('userId', user!.$id)] }),
@@ -144,7 +148,7 @@ export function HouseProvider({ children }: ProviderProps) {
     fetchEnrichedMembers(teamId)
       .then(enriched => setMembers(enriched))
       .catch(() => {});
-  }
+  }, [user])
 
   // ─── Fallback refresh ─────────────────────────────────────────────────────
   // Discovers which house the user belongs to via team.list() and loads it.
@@ -198,7 +202,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setMembers(memberships.memberships);
       return { data: response };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -209,7 +213,7 @@ export function HouseProvider({ children }: ProviderProps) {
       await team.createMembership({ teamId: houseTeamId, roles: roles ?? [], email, url: 'homy://accept-invite' });
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -219,7 +223,7 @@ export function HouseProvider({ children }: ProviderProps) {
       const data = await team.listMemberships({ teamId: houseTeamId });
       return { data };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -234,7 +238,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setMembers(prev => prev.map(m => m.$id === memberId ? { ...m, roles: updated.roles } : m));
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -245,7 +249,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setMembers(prev => prev.filter(m => m.$id !== memberId));
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -261,7 +265,7 @@ export function HouseProvider({ children }: ProviderProps) {
       } catch (_) {}
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -272,7 +276,7 @@ export function HouseProvider({ children }: ProviderProps) {
       clearHouseState();
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -287,8 +291,8 @@ export function HouseProvider({ children }: ProviderProps) {
           const { rows } = await databases.listRows({ databaseId: DatabaseIDs.DATABASE, tableId });
           await Promise.all(
             rows
-              .filter((r: Models.Row) => r.team_id === houseTeamId)
-              .map((r: Models.Row) => databases.deleteRow({ databaseId: DatabaseIDs.DATABASE, tableId, rowId: r.$id }))
+              .filter((r) => r.team_id === houseTeamId)
+              .map((r) => databases.deleteRow({ databaseId: DatabaseIDs.DATABASE, tableId, rowId: r.$id }))
           );
         } catch (_) {}
       }));
@@ -297,7 +301,7 @@ export function HouseProvider({ children }: ProviderProps) {
       clearHouseState();
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -331,7 +335,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setHouse(prev => prev ? { ...prev, roles: selfUpdated.roles } : null);
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -344,7 +348,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setRolePermissions(newPerms);
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -356,7 +360,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setRoleOrder(order);
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -374,7 +378,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setRoleOrder(newOrder);
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -392,7 +396,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setRolePermissions(newPerms);
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -404,7 +408,7 @@ export function HouseProvider({ children }: ProviderProps) {
       setHierarchyEnabled(enabled);
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -434,11 +438,11 @@ export function HouseProvider({ children }: ProviderProps) {
         }
       );
 
-      if (execution.status === 'failed') throw new Error('Function failed — check Appwrite logs');
-      if (execution.status !== 'completed') throw new Error(`Unexpected status: ${execution.status}`);
+      if (execution.status === ExecutionStatus.Failed) throw new Error('Function failed — check Appwrite logs');
+      if (execution.status !== ExecutionStatus.Completed) throw new Error(`Unexpected status: ${execution.status}`);
 
-      let result: any;
-      try { result = JSON.parse(execution.responseBody); }
+      let result: joinHouseResponse;
+      try { result = JSON.parse(execution.responseBody) as joinHouseResponse; }
       catch { throw new Error(`Bad function response: ${execution.responseBody}`); }
 
       if (!result.success) throw new Error(result.error ?? 'Could not join house');
@@ -458,7 +462,7 @@ export function HouseProvider({ children }: ProviderProps) {
       }
       return { data: {} };
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
@@ -475,21 +479,22 @@ export function HouseProvider({ children }: ProviderProps) {
     const channels = [Channel.team(houseTeamId).toString(), "memberships"];
     const unsubscribe = client.subscribe(channels, (response) => {
       const events = response.events;
-      const payload = response.payload as any;
+      const payload = response.payload;
       const isMembership = events.some(e => e.includes('memberships'));
       if (isMembership) {
+        const membership = payload as Models.Membership
         // Ignore memberships from other teams (global channel sees them all).
-        if (payload?.teamId && payload.teamId !== houseTeamId) return;
-        const isMine = payload?.userId === user?.$id;
+        if (membership?.teamId && membership.teamId !== houseTeamId) return;
+        const isMine = membership?.userId === user?.$id;
         if (events.some(e => e.endsWith('.create'))) {
           fetchEnrichedMembers(houseTeamId).then(enriched => setMembers(enriched)).catch(() => {});
         } else if (events.some(e => e.endsWith('.update'))) {
-          if (payload?.$id) setMembers(prev => prev.map(m => m.$id === payload.$id ? { ...m, ...payload } : m));
+          if (membership?.$id) setMembers(prev => prev.map(m => m.$id === membership.$id ? { ...m, ...membership } : m));
           // If it's my own membership (e.g. I was just made owner), refresh `house`
           // so owner-gated UI / permissions update immediately.
-          if (isMine && payload?.$id) setHouse(prev => prev ? { ...prev, ...payload } : prev);
+          if (isMine && membership?.$id) setHouse(prev => prev ? { ...prev, ...membership } : prev);
         } else if (events.some(e => e.endsWith('.delete'))) {
-          if (payload?.$id) setMembers(prev => prev.filter(m => m.$id !== payload.$id));
+          if (membership?.$id) setMembers(prev => prev.filter(m => m.$id !== membership.$id));
           // If I was the one removed, clear my house state so I'm kicked out cleanly.
           if (isMine) clearHouseState();
         }
@@ -497,8 +502,9 @@ export function HouseProvider({ children }: ProviderProps) {
         // Team-level update — roles / hierarchy / permissions changed.
         // The realtime payload may omit the full prefs object, so re-fetch the
         // team to get authoritative prefs rather than trusting payload.prefs.
-        console.log("[RT-TEAM] update received, events:", JSON.stringify(events), "hasPrefs:", !!payload?.prefs); // TEMP
-        if (payload?.prefs) applyPrefs(payload.prefs);
+        const house = payload as Models.Team<HousePreferences>
+        console.log("[RT-TEAM] update received, events:", JSON.stringify(events), "hasPrefs:", !!house?.prefs); // TEMP
+        if (house?.prefs) applyPrefs(house.prefs);
         team.get({ teamId: houseTeamId }).then(t => applyPrefs(t.prefs)).catch(() => {});
       }
     });
@@ -507,7 +513,7 @@ export function HouseProvider({ children }: ProviderProps) {
 
   // ─── Startup: load house from Appwrite ────────────────────────────────────
   useEffect(() => {
-    (async () => {
+    (() => {
       setHouseInitialized(false)
       if (!user) {
         setHouse(null);
@@ -515,21 +521,20 @@ export function HouseProvider({ children }: ProviderProps) {
         setHouseInitialized(true);
         return;
       }
-      try {
-        const houses = await team.list({ total: true });
-        if (houses.total > 1) throw new Error("User belongs to more than 1 house");
-        if (houses.total === 1) {
-          await loadHouseFromTeam(houses.teams[0].$id);
-        } else {
-          clearHouseState();
-        }
-      } catch (error) {
-        console.log("HouseProvider init error:", error);
-        setHouse(null);
-      }
-      setHouseInitialized(true);
+        team.list({ total: true }).then((houses) => {
+          if (houses.total > 1) throw new Error("User belongs to more than 1 house");
+          if (houses.total === 1) {
+            loadHouseFromTeam(houses.teams[0].$id).catch(() => {});
+          } else {
+            clearHouseState();
+          }
+        }).catch((error) => {
+          console.log("HouseProvider init error:", error);
+          setHouse(null);
+        })
+        setHouseInitialized(true);
     })();
-  }, [user?.$id]);
+  }, [user, loadHouseFromTeam]);
 
   return (
     <HouseContext.Provider value={{

@@ -50,7 +50,7 @@ export default function TabLayout() {
                 tabBarStyle,
                 tabBarItemStyle,
                 tabBarLabelStyle,
-                sceneContainerStyle: { backgroundColor: bgColor },
+                sceneStyle: { backgroundColor: bgColor },
               }}
             >
               <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <TabIcon Icon={Home} color={color} size={size} /> }} />

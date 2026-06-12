@@ -41,7 +41,7 @@ export default function CalendarScreen() {
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState(toDateStr(now.getFullYear(), now.getMonth(), now.getDate()));
   const { events, addEvent, updateEvent, deleteEvent } = useEvents();
-  const { members, house } = useHouse();
+  const { members } = useHouse();
   const { user } = useAuth();
 
   // Form state
@@ -61,7 +61,6 @@ export default function CalendarScreen() {
   const mutedColor = useThemeColor({}, 'tabIconDefault');
   const textColor = useThemeColor({}, 'text');
 
-  const isOwner = house?.roles?.includes('owner') ?? false;
   const { canCreate, canEdit, canDelete } = usePermissions();
   const todayStr = toDateStr(now.getFullYear(), now.getMonth(), now.getDate());
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();

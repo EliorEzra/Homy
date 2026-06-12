@@ -1,6 +1,7 @@
 import {
   StyleSheet, Alert, View, Image, TextInput,
   KeyboardAvoidingView, Platform, ScrollView, Pressable,
+  ImageSourcePropType,
 } from "react-native";
 import { useAuth } from "@/context/auth";
 import { Stack, useRouter } from "expo-router";
@@ -33,7 +34,7 @@ export default function SignIn() {
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <View style={[styles.hero, { backgroundColor: primaryColor }]}>
           <Image
-            source={require('@/assets/images/logoHomy.png')}
+            source={require('@/assets/images/logoHomy.png') as ImageSourcePropType}
             style={styles.heroLogo}
             resizeMode="contain"
             tintColor="white"
@@ -95,19 +96,23 @@ export default function SignIn() {
             </View>
 
             <ThemedButton
-              onPress={async () => {
+              onPress={() => {
                 if (!emailRef.current || !passwordRef.current) {
                   Alert.alert("Missing Fields", "Please enter your email and password.");
                   return;
                 }
                 setLoading(true);
-                const { data, error } = await signIn(emailRef.current, passwordRef.current);
-                setLoading(false);
-                if (data) {
+                signIn(emailRef.current, passwordRef.current).then(({data, error}) => {
+                  setLoading(false);
+                  if (data) {
                   router.replace("/(tabs)");
                 } else {
                   Alert.alert("Login Error", error?.message);
                 }
+                }).catch((err) => {
+                  console.log("Unexpected error caught in login", err)
+                  Alert.alert("Unexpected Login Error Occurred");
+                })
               }}
               title={loading ? "Signing in…" : "Sign In"}
               disabled={loading}

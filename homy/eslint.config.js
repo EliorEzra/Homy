@@ -13,8 +13,12 @@ module.exports = defineConfig([
   {
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     files: ["**/*.js", "**/*.jsx", "**/*.tsx", "**/*.ts"],
+    ignores: ["**/eslint.config.js"],
     rules: {
-      "@typescript-eslint/no-deprecated": "error"
+      "@typescript-eslint/no-deprecated": "error",
+      "react/no-unescaped-entities": 0,
+      '@typescript-eslint/no-unused-vars': ['warn', { caughtErrors: 'none' }],
+      "no-empty": ["warn", { "allowEmptyCatch": true }]
     },
     languageOptions: {
       parserOptions: {
