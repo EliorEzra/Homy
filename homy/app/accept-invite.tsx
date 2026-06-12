@@ -57,7 +57,7 @@ export default function AcceptInviteScreen() {
     if (acceptAttempted.current) return;
     acceptAttempted.current = true;
     setStatus('loading');
-    const { error } = await acceptHouseInvite(teamId!, membershipId!, secret!);
+    const { error } = await acceptHouseInvite(teamId, membershipId, secret);
     if (error) {
       setStatus('error');
       setErrorMsg(error.message ?? 'Could not accept the invitation.');

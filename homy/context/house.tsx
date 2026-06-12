@@ -315,7 +315,7 @@ export function HouseProvider({ children }: ProviderProps) {
         membershipId: newOwnerMembershipId,
         roles: ['owner'],
       });
-      const myRolesWithoutOwner = (house.roles as string[] ?? []).filter(r => r !== 'owner');
+      const myRolesWithoutOwner = (house.roles ?? []).filter(r => r !== 'owner');
       const selfUpdated = await team.updateMembership({
         teamId: houseTeamId,
         membershipId: house.$id,
@@ -472,7 +472,7 @@ export function HouseProvider({ children }: ProviderProps) {
     if (!houseTeamId) return;
     const channels = [Channel.team(houseTeamId).toString(), "memberships"];
     const unsubscribe = client.subscribe(channels, (response) => {
-      const events = response.events as string[];
+      const events = response.events;
       const payload = response.payload as any;
       const isMembership = events.some(e => e.includes('memberships'));
       if (isMembership) {

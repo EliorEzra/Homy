@@ -302,8 +302,8 @@ export default function FinancesScreen() {
           </ThemedCard>
         ) : [...visibleExpenses]
             .sort((a, b) => {
-              const ta = a.$createdAt ? new Date(a.$createdAt as string).getTime() : 0;
-              const tb = b.$createdAt ? new Date(b.$createdAt as string).getTime() : 0;
+              const ta = a.$createdAt ? new Date(a.$createdAt).getTime() : 0;
+              const tb = b.$createdAt ? new Date(b.$createdAt).getTime() : 0;
               return tb - ta;
             })
             .map(item => {

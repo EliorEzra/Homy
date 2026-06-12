@@ -1,7 +1,7 @@
 import {
   StyleSheet, View, Switch, ScrollView, Pressable, Appearance, Alert,
   TextInput, Modal, KeyboardAvoidingView, Platform,
-} from 'react-native';
+ useColorScheme } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -11,7 +11,6 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/context/auth';
 import { useHouse } from '@/context/house';
 import { spacing } from '@/theme/theme';
-import { useColorScheme } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Models } from 'react-native-appwrite';
@@ -357,7 +356,7 @@ export default function SettingsScreen() {
             const isLast = index === members.length - 1;
             const name = isMe
               ? (user?.name || user?.email?.split('@')[0] || 'Me')
-              : (member.userName || member.userEmail?.split('@')[0] || `User ${(member.userId as string).slice(0, 6)}`);
+              : (member.userName || member.userEmail?.split('@')[0] || `User ${(member.userId).slice(0, 6)}`);
             const email = isMe ? (user?.email || '') : (member.userEmail || '');
             const memberInitials = name.slice(0, 2).toUpperCase();
             const customRoles = (member.roles ?? []).filter((r: string) => r !== 'owner');

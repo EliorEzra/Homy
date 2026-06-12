@@ -32,7 +32,7 @@ export default function VerifyEmail() {
     }
     setLoading(true);
     try {
-      const { data, error } = await verifyEmail(userId, code.trim(), email!, password!);
+      const { data, error } = await verifyEmail(userId, code.trim(), email, password);
       if (data) {
         router.replace("/(tabs)");
       } else {

@@ -154,7 +154,7 @@ export function TasksProvider(props: ProviderProps) {
     if (!houseTeamId) return;
     const base = Channel.tablesdb(DatabaseIDs.DATABASE).table(DatabaseIDs.TASKS).toString();
     const unsubscribe = client.subscribe([base, `${base}.rows`], (response) => {
-      const events = response.events as string[];
+      const events = response.events;
       const payload = response.payload as Models.Row;
       if (!payload || payload.team_id !== houseTeamId) return;
       if (events.some(e => e.endsWith('.create'))) {

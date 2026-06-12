@@ -21,11 +21,11 @@ export function usePermissions() {
   const { house, members, houseRoles, roleOrder, rolePermissions, hierarchyEnabled } = useHouse();
   const { user } = useAuth();
 
-  const isOwner = (house?.roles as string[] | undefined)?.includes('owner') ?? false;
+  const isOwner = (house?.roles)?.includes('owner') ?? false;
 
   const myMembership = members.find(m => m.userId === user?.$id);
   const myRole: string | null =
-    ((myMembership?.roles as string[] | undefined) ?? []).find(r => r !== 'owner') ?? null;
+    ((myMembership?.roles) ?? []).find(r => r !== 'owner') ?? null;
 
   // Prefer explicit roleOrder; fall back to houseRoles insertion order
   const effectiveOrder = roleOrder.length > 0 ? roleOrder : houseRoles;
@@ -40,7 +40,7 @@ export function usePermissions() {
   function rankOf(userId: string): number {
     if (!userId) return effectiveOrder.length;
     const m = members.find(mem => mem.userId === userId);
-    const role = ((m?.roles as string[] | undefined) ?? []).find(r => r !== 'owner') ?? null;
+    const role = ((m?.roles) ?? []).find(r => r !== 'owner') ?? null;
     return role !== null && effectiveOrder.includes(role)
       ? effectiveOrder.indexOf(role)
       : effectiveOrder.length;

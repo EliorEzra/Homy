@@ -80,7 +80,7 @@ export function AuthProvider(props: ProviderProps) {
 
   const logout = async (): Promise<SignOutResponse> => {
     try {
-      const response = await account.deleteSession("current");
+      const response = await account.deleteSession({sessionId: "current"});
       return { error: undefined, data: response };
     } catch (error) {
       return { error, data: undefined };
@@ -96,7 +96,7 @@ export function AuthProvider(props: ProviderProps) {
       // This can happen when a startup network blip causes account.get() to fail,
       // setting auth to null even though a valid session cookie is still present.
       // Silently deleting the current session first makes login always safe to call.
-      try { await account.deleteSession('current'); } catch (_) {}
+      try { await account.deleteSession({sessionId: "current"}); } catch (_) {}
       await account.createEmailPasswordSession({ email, password });
       const fetchedUser = await account.get();
       if (fetchedUser.emailVerification) {
@@ -135,8 +135,8 @@ export function AuthProvider(props: ProviderProps) {
 
   const verifyEmail = async (userId: string, secret: string, email: string, password: string): Promise<SignInResponse> => {
     try {
-      try { await account.deleteSession("current"); } catch (e) {}
-      await account.createSession(userId, secret.trim());
+      try { await account.deleteSession({sessionId: "current"}); } catch (e) {}
+      await account.createSession({userId: userId, secret: secret.trim()});
       const updatedUser = await account.get();
       setAuth(updatedUser);
       setUnverifiedUser(null);
@@ -173,8 +173,8 @@ export function AuthProvider(props: ProviderProps) {
   const updatePrefs = async (newPrefs: Record<string, any>): Promise<{ error?: any }> => {
     try {
       const merged = { ...(user?.prefs ?? {}), ...newPrefs };
-      await account.updatePrefs(merged);
-      setAuth(prev => prev ? { ...prev, prefs: merged as Models.Preferences } : null);
+      await account.updatePrefs({prefs: { ...merged }});
+      setAuth(prev => prev ? { ...prev, prefs: merged } : null);
       return {};
     } catch (error) { return { error }; }
   };

@@ -158,7 +158,7 @@ export default function ShopScreen() {
                       label={item.category as string}
                       variant="primary"
                       size="sm"
-                      style={{ backgroundColor: `${CATEGORY_COLORS[item.category as Category] ?? '#6b7280'}20` } as any}
+                      style={{ backgroundColor: `${CATEGORY_COLORS[item.category as Category] ?? '#6b7280'}20` }}
                     />
                   </View>
                 </View>
