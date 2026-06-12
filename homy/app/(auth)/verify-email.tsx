@@ -10,8 +10,8 @@ import { ThemedInput } from "@/components/themed-input";
 import { ShieldCheck, Mail } from "lucide-react-native";
 
 export default function VerifyEmail() {
-  const { userId, email, password } = useLocalSearchParams<{
-    userId: string; email: string; password: string;
+  const { userId, email } = useLocalSearchParams<{
+    userId: string; email: string;
   }>();
 
   const router = useRouter();
