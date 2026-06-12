@@ -254,7 +254,7 @@ export function HouseProvider({ children }: ProviderProps) {
   }
 
   /** Accept an email-based invite (deep-link flow). */
-  async function acceptHouseInvite(teamId: string, membershipId: string, secret: string): Promise<HouseResponse> {
+  const acceptHouseInvite = useCallback(async (teamId: string, membershipId: string, secret: string): Promise<HouseResponse> => {
     try {
       if (!user) throw new Error("Log in before accepting an invitation");
       const response = await team.updateMembershipStatus({ teamId, membershipId, userId: user.$id, secret });
@@ -267,7 +267,7 @@ export function HouseProvider({ children }: ProviderProps) {
     } catch (error) {
       return { error: error as Error };
     }
-  }
+  }, [user])
 
   async function leaveHouse(): Promise<HouseResponse> {
     try {
