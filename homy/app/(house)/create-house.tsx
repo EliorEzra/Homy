@@ -83,7 +83,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
           onChangeText={handleChange}
           onSubmitEditing={() => addTag(input)}
           returnKeyType="done"
-          blurOnSubmit={false}
+          submitBehavior="blurAndSubmit"
         />
       </View>
     </View>

@@ -68,10 +68,11 @@ async function fetchEnrichedMembers(teamId: string): Promise<Models.Membership[]
   for (const delay of delays) {
     try {
       if (delay > 0) await new Promise(r => setTimeout(r, delay));
-      const exec = await functions.createExecution(
-        GET_MEMBERS_FUNCTION_ID,
-        JSON.stringify({ teamId }),
-        false
+      const exec = await functions.createExecution({
+          functionId: GET_MEMBERS_FUNCTION_ID,
+          body: JSON.stringify({ teamId }),
+          async: false
+        }
       );
       if (exec.status === 'completed' && exec.responseBody) {
         try {
@@ -426,10 +427,11 @@ export function HouseProvider({ children }: ProviderProps) {
       const teamId = code.replace(/-/g, '').trim().toLowerCase();
       if (!teamId) throw new Error("Invalid code");
 
-      const execution = await functions.createExecution(
-        JOIN_HOUSE_FUNCTION_ID,
-        JSON.stringify({ teamId }),
-        false // synchronous
+      const execution = await functions.createExecution({
+          functionId: JOIN_HOUSE_FUNCTION_ID,
+          body: JSON.stringify({ teamId }),
+          async: false
+        }
       );
 
       if (execution.status === 'failed') throw new Error('Function failed — check Appwrite logs');
