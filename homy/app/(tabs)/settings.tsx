@@ -115,9 +115,9 @@ export default function SettingsScreen() {
     setTimeout(() => setCodeCopied(false), 2000);
   };
 
-  const toggleDarkMode = async (val: boolean) => {
+  const toggleDarkMode = (val: boolean) => {
     Appearance.setColorScheme(val ? 'dark' : 'light');
-    await updatePrefs({ theme: val ? 'dark' : 'light' } as UserPreferences);
+    updatePrefs({ theme: val ? 'dark' : 'light' } as UserPreferences).catch(() => {});
   };
 
   // ── Profile edit ──────────────────────────────────────────────────────────

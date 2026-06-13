@@ -134,7 +134,7 @@ export function HouseProvider({ children }: ProviderProps) {
   const loadHouseFromTeam = useCallback(async (teamId: string) => {
     const [houseTeam, ownMemberships, rawMemberships] = await Promise.all([
       team.get({ teamId }),
-      team.listMemberships({ teamId, queries: [Query.equal('userId', user!.$id)] }),
+      team.listMemberships({ teamId, queries: [Query.equal('userId', user?.$id || '')] }),
       team.listMemberships({ teamId }),
     ]);
     setHouse(ownMemberships.memberships[0] ?? null);
@@ -146,7 +146,7 @@ export function HouseProvider({ children }: ProviderProps) {
     fetchEnrichedMembers(teamId)
       .then(enriched => setMembers(enriched))
       .catch(() => {});
-  }, [user])
+  }, [user?.$id])
 
   // ─── Fallback refresh ─────────────────────────────────────────────────────
   // Discovers which house the user belongs to via team.list() and loads it.
@@ -513,7 +513,7 @@ export function HouseProvider({ children }: ProviderProps) {
   useEffect(() => {
     (() => {
       setHouseInitialized(false)
-      if (!user) {
+      if (!user?.$id) {
         setHouse(null);
         setMembers([]);
         setHouseInitialized(true);
@@ -532,7 +532,7 @@ export function HouseProvider({ children }: ProviderProps) {
         })
         setHouseInitialized(true);
     })();
-  }, [user, loadHouseFromTeam]);
+  }, [user?.$id, loadHouseFromTeam]);
 
   return (
     <HouseContext.Provider value={{

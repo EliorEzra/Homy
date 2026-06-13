@@ -39,7 +39,7 @@ export default function AcceptInviteScreen() {
       setErrorMsg('Invalid invite link — missing parameters.');
       return;
     }
-    if (!user) {
+    if (!user?.$id) {
       setStatus('needs-auth');
       return;
     }
@@ -62,7 +62,7 @@ export default function AcceptInviteScreen() {
       }
     }).catch(() => {})
 
-  }, [membershipId, teamId, secret, user, house, acceptAttempted, acceptHouseInvite]);
+  }, [membershipId, teamId, secret, user?.$id, house, acceptAttempted, acceptHouseInvite]);
 
   const handleLeaveAndJoin = () => {
     const action = isOwner ? 'close your current house' : 'leave your current house';
