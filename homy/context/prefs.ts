@@ -3,7 +3,9 @@ import { RolePermissions } from "./db_models";
 
 
 export type UserPreferences = Models.DefaultPreferences & Record<string, unknown> & {
-    theme?: string
+    theme?: string,
+    avatarColor?: string,
+    avatarIcon?: string
 }
 
 export type HousePreferences = Models.DefaultPreferences & Record<string, unknown> & {

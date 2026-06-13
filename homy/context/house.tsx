@@ -163,12 +163,12 @@ export function HouseProvider({ children }: ProviderProps) {
   }
 
   // ─── Public refresh (members only) ────────────────────────────────────────
-  async function refreshMembers(): Promise<void> {
+  const refreshMembers = useCallback(async (): Promise<void> => {
     if (!houseTeamId) return;
     try {
       setMembers(await fetchEnrichedMembers(houseTeamId));
     } catch (_) {}
-  }
+  }, [houseTeamId])
 
   // ─── CRUD ─────────────────────────────────────────────────────────────────
 

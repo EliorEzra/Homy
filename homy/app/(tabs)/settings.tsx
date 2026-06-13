@@ -14,20 +14,22 @@ import { spacing } from '@/theme/theme';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { Models } from 'react-native-appwrite';
-import { RolePermissions, DEFAULT_ROLE_PERMISSIONS, DEFAULT_TAB_PERMISSION, TabPermission } from '@/context/db_models';
+import { RolePermissions, DEFAULT_ROLE_PERMISSIONS, TabPermission } from '@/context/db_models';
 import {
   Moon, LogOut, ChevronRight, Trash2, DoorOpen, Users, Crown, UserPlus, X,
   Mail, Copy, Check, Pencil, RefreshCw, UserMinus, ShieldCheck, ChevronUp,
   ChevronDown, Plus, Lock, Eye, EyeOff, User,
   Home, Heart, Star, Sun, Coffee, Music, Leaf, Globe, Smile, Zap, Gift,
   Rocket, Flame, Snowflake, Cat, Bike,
+  LucideProps,
 } from 'lucide-react-native';
+import { UserPreferences } from '@/context/prefs';
 
 // ─── Avatar preset colours ────────────────────────────────────────────────────
 const AVATAR_COLORS = ['#106d8f','#1a5276','#0d7ea8','#61b2cf','#1a8fad','#2c3e50','#8e44ad','#c47c2a'];
 
 // ─── Avatar icons ─────────────────────────────────────────────────────────────
-const ICON_MAP: Record<string, React.FC<any>> = {
+const ICON_MAP: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
   Home, Heart, Star, Sun, Moon, Coffee, Music, Crown, Leaf, Globe,
   Smile, Zap, Gift, Rocket, Flame, Snowflake, Cat, Bike,
 };
@@ -86,8 +88,8 @@ export default function SettingsScreen() {
   // so a focus-based re-fetch is the reliable way to pick them up.
   useFocusEffect(
     useCallback(() => {
-      refreshMembers();
-    }, [])
+      refreshMembers().catch(() => {});
+    }, [refreshMembers])
   );
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -99,8 +101,8 @@ export default function SettingsScreen() {
     ? user.name.charAt(0).toUpperCase() + user.name.slice(1)
     : user?.email?.split('@')[0] || 'User';
   const initials = displayName.slice(0, 2).toUpperCase();
-  const avatarIcon = (user?.prefs?.avatarIcon as string) || '';
-  const avatarColor = (user?.prefs?.avatarColor as string) || primaryColor;
+  const avatarIcon = user?.prefs?.avatarIcon || '';
+  const avatarColor = user?.prefs?.avatarColor || primaryColor;
 
   const isOwner = house?.roles?.includes('owner') ?? false;
   const effectiveOrder = roleOrder.length > 0 ? roleOrder : houseRoles;
@@ -115,7 +117,7 @@ export default function SettingsScreen() {
 
   const toggleDarkMode = async (val: boolean) => {
     Appearance.setColorScheme(val ? 'dark' : 'light');
-    await updatePrefs({ theme: val ? 'dark' : 'light' });
+    await updatePrefs({ theme: val ? 'dark' : 'light' } as UserPreferences);
   };
 
   // ── Profile edit ──────────────────────────────────────────────────────────
@@ -143,7 +145,7 @@ export default function SettingsScreen() {
     const prevColor = (user?.prefs?.avatarColor as string) ?? '';
     const prevIcon  = (user?.prefs?.avatarIcon  as string) ?? '';
     if (editAvatarColor !== prevColor || editAvatarIcon !== prevIcon) {
-      await updatePrefs({ avatarColor: editAvatarColor, avatarIcon: editAvatarIcon });
+      await updatePrefs({ avatarColor: editAvatarColor, avatarIcon: editAvatarIcon } as UserPreferences);
     }
 
     // Password
@@ -176,9 +178,9 @@ export default function SettingsScreen() {
     else { setInviteEmail(''); setInviteVisible(false); Alert.alert('Invite Sent', `An invitation has been sent to ${email}.`); }
   };
 
-  const handleRefreshMembers = async () => {
+  const handleRefreshMembers = () => {
     setRefreshing(true);
-    await refreshMembers();
+    refreshMembers().catch(() => {});
     setRefreshing(false);
   };
 
@@ -186,7 +188,11 @@ export default function SettingsScreen() {
     const name = member.userName || member.userEmail?.split('@')[0] || 'this member';
     Alert.alert('Remove Member', `Remove ${name} from the household? They will lose access to all shared data.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => { const { error } = await removeMember(member.$id); if (error) Alert.alert('Error', error.message); } },
+      { text: 'Remove', style: 'destructive', onPress: () => { 
+        removeMember(member.$id).then(({error}) => {
+          if (error) Alert.alert('Error', error.message)
+        }).catch(() => {})
+      }},
     ]);
   };
 
@@ -194,7 +200,11 @@ export default function SettingsScreen() {
     const name = member.userName || member.userEmail?.split('@')[0] || 'this member';
     Alert.alert('Transfer Ownership', `Make ${name} the new owner? You will become a regular member.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Transfer', style: 'destructive', onPress: async () => { const { error } = await transferOwnership(member.$id); if (error) Alert.alert('Error', error.message ?? 'Could not transfer ownership.'); } },
+      { text: 'Transfer', style: 'destructive', onPress: () => {
+        transferOwnership(member.$id).then(({error}) => {
+          if (error) Alert.alert('Error', error.message ?? 'Could not transfer ownership.'); 
+        }).catch(() => {})
+      }},
     ]);
   };
 
@@ -254,21 +264,33 @@ export default function SettingsScreen() {
   const handleRemoveRole = (role: string) => {
     Alert.alert('Remove Role', `Remove the "${role}" role? Members with this role will become unassigned.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => { const { error } = await removeRole(role); if (error) Alert.alert('Error', error.message); } },
+      { text: 'Remove', style: 'destructive', onPress: () => {
+        removeRole(role).then(({error}) => {
+          if (error) Alert.alert('Error', error.message)
+        }).catch(() => {})
+      }},
     ]);
   };
 
   const handleLeaveHouse = () => {
     Alert.alert('Leave House', 'Are you sure you want to leave this household? You will lose access to all shared data.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: async () => { const { error } = await leaveHouse(); if (error) Alert.alert('Error', error.message); } },
+      { text: 'Leave', style: 'destructive', onPress: () => {
+        leaveHouse().then(({error}) => {
+          if (error) Alert.alert('Error', error.message)
+        }).catch(() => {})
+      }},
     ]);
   };
 
   const handleCloseHouse = () => {
     Alert.alert('Close House', 'Are you sure you want to permanently close this household? This will remove all members and cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Close House', style: 'destructive', onPress: async () => { const { error } = await deleteHouse(); if (error) Alert.alert('Error', error.message); } },
+      { text: 'Close House', style: 'destructive', onPress: () => {
+        deleteHouse().then(({error}) => {
+          if (error) Alert.alert('Error', error.message)
+        }).catch(() => {})
+      }},
     ]);
   };
 
@@ -361,9 +383,9 @@ export default function SettingsScreen() {
             const memberInitials = name.slice(0, 2).toUpperCase();
             const customRoles = (member.roles ?? []).filter((r: string) => r !== 'owner');
             // For the current user prefer live prefs; for others use what get-members returned.
-            const memberAny = member as any;
+            const memberAny = member;
             const memberIcon  = isMe
-              ? ((user?.prefs?.avatarIcon  as string) || '')
+              ? (user?.prefs?.avatarIcon || '')
               : ((memberAny.avatarIcon    as string) || '');
             const memberColor = isMe
               ? ((user?.prefs?.avatarColor as string) || primaryColor)

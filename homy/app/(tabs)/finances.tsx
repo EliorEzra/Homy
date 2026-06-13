@@ -11,6 +11,7 @@ import { useAuth } from '@/context/auth';
 import { useHouse } from '@/context/house';
 import { useExpenses } from '@/context/expenses_db';
 import { usePermissions } from '@/hooks/use-permissions';
+import { Expense } from '@/context/db_models';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -172,7 +173,7 @@ export default function FinancesScreen() {
     if (mode === 'even') setCustomAmounts({});
   };
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     const amt = parseFloat(amount);
     if (!title.trim() || isNaN(amt) || amt <= 0 || splitWith.length === 0) return;
 
@@ -192,13 +193,14 @@ export default function FinancesScreen() {
     }
 
     setSaving(true);
-    const { error } = await addExpense({
+    addExpense({
       title: title.trim(), amount: amt,
       paid_by: paidBy, split_with: splitWithStr,
       date: new Date().toLocaleDateString(),
-    });
-    setSaving(false);
-    if (error) { Alert.alert('Error', error.message); return; }
+    } as Expense).then(({error}) => {
+      setSaving(false);
+      if (error) { Alert.alert('Error', error.message); return; }
+    }).catch(() => {});
     resetForm(); setFormVisible(false);
   };
 
@@ -215,16 +217,17 @@ export default function FinancesScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Settle Up',
-          onPress: async () => {
-            const { error } = await addExpense({
+          onPress: () => {
+            addExpense({
               title: `Settled up with ${personDisplayName}`,
               amount: Math.abs(net),
               // Store stable userId so renames don't break this record
               paid_by: youOwe ? 'Me' : personUserId,
               split_with: youOwe ? personUserId : 'Me',
               date: new Date().toLocaleDateString(),
-            });
-            if (error) Alert.alert('Error', error.message);
+            } as Expense).then(({error}) => {
+              if (error) Alert.alert('Error', error.message);
+            }).catch(() => {});
           },
         },
       ]
@@ -347,7 +350,7 @@ export default function FinancesScreen() {
                     <Pressable onPress={() => Alert.alert(
                       'Delete Expense',
                       'Remove this expense? Balances will update automatically.',
-                      [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(item.$id) }]
+                      [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => {deleteExpense(item.$id).catch(() => {})} }]
                     )} hitSlop={8}>
                       <Trash2 size={15} color="#ff3748" />
                     </Pressable>

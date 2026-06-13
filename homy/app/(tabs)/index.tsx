@@ -39,19 +39,19 @@ export default function HomeScreen() {
 
   const tasksDueToday = (tasks ?? []).filter(t => {
     if (!t.due_date || t.completed) return false;
-    const d = new Date(t.due_date as string);
+    const d = new Date(t.due_date);
     if (isNaN(d.getTime())) return false;
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     if (ds !== todayStr) return false;
     // Apply the same visibility rule as the Tasks tab
-    const assignedTo = t.assigned_to ? (t.assigned_to as string).split(',').filter(Boolean) : [];
+    const assignedTo = t.assigned_to ? t.assigned_to.split(',').filter(Boolean) : [];
     return isOwner || assignedTo.length === 0 || assignedTo.includes(user?.$id ?? '');
   });
 
   const eventsToday = (events ?? []).filter(e => {
     if (e.date !== todayStr) return false;
     if (isOwner) return true;
-    const a = e.assigned_to ? (e.assigned_to as string).split(',').filter(Boolean) : [];
+    const a = e.assigned_to ? e.assigned_to.split(',').filter(Boolean) : [];
     return a.length === 0 || a.includes(user?.$id ?? '');
   });
   const primaryColor = useThemeColor({}, 'buttonBackground');
