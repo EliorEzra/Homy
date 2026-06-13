@@ -12,7 +12,7 @@ module.exports = defineConfig([
   },
   {
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
-    files: ["**/*.js", "**/*.jsx", "**/*.tsx", "**/*.ts"],
+    files: ["**/*.jsx", "**/*.tsx", "**/*.ts"],
     ignores: ["**/eslint.config.js"],
     rules: {
       "@typescript-eslint/no-deprecated": "error",

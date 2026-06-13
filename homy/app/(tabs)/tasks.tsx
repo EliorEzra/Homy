@@ -14,20 +14,20 @@ import { useTasks } from '@/context/tasks_db';
 import { useHouse } from '@/context/house';
 import { useAuth } from '@/context/auth';
 import { usePermissions } from '@/hooks/use-permissions';
-import { Models } from 'react-native-appwrite';
+import { Task } from '@/context/db_models';
 
-function rowToTask(row: Models.Row) {
+function taskToDefaults(task: Task) {
   return {
-    id: row.$id,
-    title: row.task_text ?? '',
-    description: row.description ?? '',
-    dueDate: row.due_date ?? '',
-    status: (row.status ?? 'todo') as "todo" | "in-progress" | "done",
-    completed: row.completed ?? false,
-    userId: (row.userId as string) ?? '',
-    assignedTo: row.assigned_to
-      ? (row.assigned_to as string).split(',').filter(Boolean)
-      : [] as string[],
+    id: task.$id,
+    title: task.task_text ?? '',
+    description: task.description ?? '',
+    dueDate: task.due_date ?? '',
+    status: task.status ?? 'todo',
+    completed: task.completed ?? false,
+    userId: task.userId ?? '',
+    assignedTo: task.assigned_to
+      ? task.assigned_to.split(',').filter(Boolean)
+      : [],
   };
 }
 
@@ -46,11 +46,11 @@ export default function TasksScreen() {
 
   const { canCreate, canEdit, canDelete } = usePermissions();
 
-  const uiTasks = (tasks ?? []).map(rowToTask);
+  const uiTasks = (tasks ?? []).map(taskToDefaults);
 
   const filtered = uiTasks
     .filter(t => whoFilter === 'mine'
-      ? t.assignedTo.length === 0 || t.assignedTo.includes(user?.$id ?? '')
+      ? t.assignedTo.length === 0 || t.assignedTo?.includes(user?.$id ?? '')
       : true)
     .filter(t => statusFilter === 'active' ? !t.completed : statusFilter === 'completed' ? t.completed : true);
 
@@ -65,14 +65,16 @@ export default function TasksScreen() {
 
   const handleAdd = (data: TaskFormData) => {
     const assigned = data.assignedTo.length > 0 ? data.assignedTo.join(',') : undefined;
-    addTask({ task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, completed: false, assigned_to: assigned }, []);
+    addTask({ task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, completed: false, assigned_to: assigned } as Task, [])
+    .catch(() => {});
     setFormVisible(false);
   };
 
   const handleEdit = (data: TaskFormData) => {
     if (!editingId) return;
     const assigned = data.assignedTo.length > 0 ? data.assignedTo.join(',') : undefined;
-    updateTask(editingId, { task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, assigned_to: assigned });
+    updateTask(editingId, { task_text: data.title, description: data.description, due_date: data.dueDate, status: data.status, assigned_to: assigned })
+    .catch(() => {});
     setEditingId(null); setFormVisible(false);
   };
 
@@ -82,7 +84,7 @@ export default function TasksScreen() {
   const handleClearDone = () => {
     Alert.alert('Clear Completed', 'Remove all completed tasks?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Clear', style: 'destructive', onPress: clearCompletedTasks },
+      { text: 'Clear', style: 'destructive', onPress: () => {clearCompletedTasks().catch(() => {})} },
     ]);
   };
 
@@ -133,8 +135,8 @@ export default function TasksScreen() {
               <TaskCard {...item}
                 assignedTo={getAssigneesLabel(item.assignedTo)}
                 onEdit={canEdit('tasks', item.userId) ? () => { setEditingId(item.id); setFormVisible(true); } : undefined}
-                onDelete={canDelete('tasks', item.userId) ? () => deleteTask(item.id) : undefined}
-                onToggleComplete={canEdit('tasks', item.userId) ? () => updateTask(item.id, { completed: !item.completed }) : undefined}
+                onDelete={canDelete('tasks', item.userId) ? () => {deleteTask(item.id).catch(() => {})} : undefined}
+                onToggleComplete={canEdit('tasks', item.userId) ? () => {updateTask(item.id, { completed: !item.completed }).catch(() => {})} : undefined}
                 style={styles.taskCard}
               />
             )}

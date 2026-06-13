@@ -12,13 +12,17 @@ import { useAuth } from "@/context/auth";
 import { X, Calendar, Clock, User } from 'lucide-react-native';
 
 export type TaskFormData = {
-  title: string; description: string; dueDate: string;
+  title: string; 
+  description: string; 
+  dueDate: string;
   status: "todo" | "in-progress" | "done";
   assignedTo: string[]; // array of userIds
 }
 
 export type TaskFormProps = {
-  visible: boolean; initialData?: TaskFormData; isEditing?: boolean;
+  visible: boolean; 
+  initialData?: TaskFormData; 
+  isEditing?: boolean;
   members?: Models.Membership[];
   onSubmit: (data: TaskFormData) => void; onClose: () => void;
 }

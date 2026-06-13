@@ -4,7 +4,7 @@ import { Models, ID, Query, Channel, ExecutionStatus } from "react-native-appwri
 import { DatabaseIDs, RolePermissions } from "./db_models";
 import { useAuth } from "./auth";
 import { HousePreferences } from "./prefs";
-import { joinHouseResponse } from "@/appwrite-functions/function_responses";
+import { EnrichedMember, getMembersResponse, joinHouseResponse } from "@/appwrite-functions/function_responses";
 
 // ─── Generic response ─────────────────────────────────────────────────────────
 // All async house functions return { data?, error? } so callers can do:
@@ -31,7 +31,7 @@ interface HouseContextValue {
   updateHierarchyEnabled: (enabled: boolean) => Promise<HouseResponse>;
   house: Models.Membership | null;
   houseTeamId: string | null;
-  members: Models.Membership[];
+  members: EnrichedMember[];
   /** Defined roles for this house (stored in team prefs, not Appwrite team roles). */
   houseRoles: string[];
   /** Ordered list of role names — index 0 = highest authority. */
@@ -63,7 +63,7 @@ const GET_MEMBERS_FUNCTION_ID =
  * Falls back to whatever raw memberships the client SDK can fetch if the
  * function fails (e.g. not deployed yet) so the app keeps working.
  */
-async function fetchEnrichedMembers(teamId: string): Promise<Models.Membership[]> {
+async function fetchEnrichedMembers(teamId: string): Promise<EnrichedMember[]> {
   // Retry up to 3 times with increasing delays — mirrors the auth startup retry
   // pattern to handle intermittent network blips on self-hosted dynv6 setups.
   const delays = [0, 1500, 3000];
@@ -78,12 +78,10 @@ async function fetchEnrichedMembers(teamId: string): Promise<Models.Membership[]
       );
       if (exec.status === ExecutionStatus.Completed && exec.responseBody) {
         try {
-          /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
-          const result = JSON.parse(exec.responseBody);
+          const result = JSON.parse(exec.responseBody) as getMembersResponse;
           if (result.success && Array.isArray(result.members)) {
-            return result.members as Models.Membership[];
+            return result.members;
           }
-          /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
         } catch (_) {
           // responseBody wasn't valid JSON — try again
         }

@@ -29,7 +29,7 @@ interface deleteTaskResponse {
 interface TasksDBContextValue {
   getTasks: () => Promise<getTasksResponse>;
   addTask: (data: Task, permissions: string[]) => Promise<addTaskResponse>;
-  updateTask: (taskId: string, data: Task, permissions?: string[]) => Promise<updateTaskResponse>;
+  updateTask: (taskId: string, data: Partial<Task>, permissions?: string[]) => Promise<updateTaskResponse>;
   deleteTask: (taskId: string) => Promise<deleteTaskResponse>;
   clearCompletedTasks: () => Promise<void>;
   tasks: Task[] | null;
@@ -101,7 +101,7 @@ export function TasksProvider(props: ProviderProps) {
     }
   }
 
-  async function updateTask(taskId: string, data: Task, permissions?: string[]): Promise<updateTaskResponse> {
+  async function updateTask(taskId: string, data: Partial<Task>, permissions?: string[]): Promise<updateTaskResponse> {
     try {
       await databases.updateRow({
         databaseId: DatabaseIDs.DATABASE,
