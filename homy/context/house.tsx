@@ -131,13 +131,12 @@ export function HouseProvider({ children }: ProviderProps) {
   //   1. Fetch team info + raw memberships in parallel — fast, unblocks the UI.
   //   2. Enrich members with real names/emails via Appwrite Function in background
   //      — does NOT block phase 1, updates state when ready.
-  const loadHouseFromTeam = useCallback(async (teamId: string) => {
-    const [houseTeam, ownMemberships, rawMemberships] = await Promise.all([
+  const loadHouseFromTeam = useCallback(async (teamId: string): Promise<void> => {
+    const [houseTeam, rawMemberships] = await Promise.all([
       team.get({ teamId }),
-      team.listMemberships({ teamId, queries: [Query.equal('userId', user?.$id || '')] }),
       team.listMemberships({ teamId }),
     ]);
-    setHouse(ownMemberships.memberships[0] ?? null);
+    setHouse(rawMemberships.memberships[0] ?? null);
     setHouseTeamId(teamId);
     applyPrefs(houseTeam.prefs);
     setMembers(rawMemberships.memberships);
@@ -146,7 +145,7 @@ export function HouseProvider({ children }: ProviderProps) {
     fetchEnrichedMembers(teamId)
       .then(enriched => setMembers(enriched))
       .catch(() => {});
-  }, [user?.$id])
+  }, [])
 
   // ─── Fallback refresh ─────────────────────────────────────────────────────
   // Discovers which house the user belongs to via team.list() and loads it.
@@ -511,7 +510,7 @@ export function HouseProvider({ children }: ProviderProps) {
 
   // ─── Startup: load house from Appwrite ────────────────────────────────────
   useEffect(() => {
-    (() => {
+    (async () => {
       setHouseInitialized(false)
       if (!user?.$id) {
         setHouse(null);
@@ -519,19 +518,20 @@ export function HouseProvider({ children }: ProviderProps) {
         setHouseInitialized(true);
         return;
       }
-        team.list({ total: true }).then((houses) => {
-          if (houses.total > 1) throw new Error("User belongs to more than 1 house");
-          if (houses.total === 1) {
-            loadHouseFromTeam(houses.teams[0].$id).catch(() => {});
-          } else {
-            clearHouseState();
-          }
-        }).catch((error) => {
-          console.log("HouseProvider init error:", error);
-          setHouse(null);
-        })
-        setHouseInitialized(true);
-    })();
+      try {
+        const houses = await team.list({ total: true });
+        if (houses.total > 1) throw new Error("User belongs to more than 1 house");
+        if (houses.total === 1) {
+          await loadHouseFromTeam(houses.teams[0].$id);
+        } else {
+          clearHouseState();
+        }
+      } catch (error) {
+        console.log("HouseProvider init error:", error);
+        setHouse(null);
+      }
+      setHouseInitialized(true);
+    })().catch(() => {});
   }, [user?.$id, loadHouseFromTeam]);
 
   return (
