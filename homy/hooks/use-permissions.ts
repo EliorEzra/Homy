@@ -4,6 +4,9 @@ import { DEFAULT_TAB_PERMISSION, TabPermission } from '@/context/db_models';
 
 export type TabKey = 'tasks' | 'shop' | 'finances' | 'calendar';
 
+/** Fully restricted permission — used when a role has nothing configured for a tab. */
+const LOCKED_TAB_PERMISSION: TabPermission = { canCreate: false, canEdit: false, canDelete: false };
+
 /**
  * Returns permission helpers scoped to the current user.
  *
@@ -51,11 +54,11 @@ export function usePermissions() {
     if (isOwner) return DEFAULT_TAB_PERMISSION;
     if (!myRole) {
       // No roles configured → permissive default; roles exist but no role assigned → locked
-      return houseRoles.length === 0
-        ? DEFAULT_TAB_PERMISSION
-        : { canCreate: false, canEdit: false, canDelete: false };
+      return houseRoles.length === 0 ? DEFAULT_TAB_PERMISSION : LOCKED_TAB_PERMISSION;
     }
-    return rolePermissions[myRole]?.[tab] ?? DEFAULT_TAB_PERMISSION;
+    // A role with no explicitly configured permissions for this tab is locked, not open.
+    // (A newly created role grants nothing until the owner configures it.)
+    return rolePermissions[myRole]?.[tab] ?? LOCKED_TAB_PERMISSION;
   }
 
   /** Can the current user add new items in this tab? */

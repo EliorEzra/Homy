@@ -80,8 +80,12 @@ export function TasksProvider(props: ProviderProps) {
         permissions: [
           Permission.read(Role.user(user.$id)),
           Permission.write(Role.user(user.$id)),
-          // All house members can read; only the creator can write
-          ...(houseTeamId ? [Permission.read(Role.team(houseTeamId))] : []),
+          // All house members can read and write; the app's role system (usePermissions)
+          // gates edit/delete client-side, so the owner and privileged roles can act on
+          // any member's row. Without team write, only the creator could edit/delete.
+          ...(houseTeamId
+            ? [Permission.read(Role.team(houseTeamId)), Permission.write(Role.team(houseTeamId))]
+            : []),
           ...permissions,
         ],
       });
