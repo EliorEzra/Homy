@@ -11,10 +11,9 @@ import { CheckCircle, XCircle, Home, AlertTriangle } from 'lucide-react-native';
 import { spacing } from '@/theme/theme';
 
 export default function AcceptInviteScreen() {
-  const { teamId, membershipId, userId, secret } = useLocalSearchParams<{
+  const { teamId, membershipId, secret } = useLocalSearchParams<{
     teamId: string;
     membershipId: string;
-    userId: string;
     secret: string;
   }>();
 
@@ -40,7 +39,7 @@ export default function AcceptInviteScreen() {
       setErrorMsg('Invalid invite link — missing parameters.');
       return;
     }
-    if (!user) {
+    if (!user?.$id) {
       setStatus('needs-auth');
       return;
     }
@@ -49,24 +48,23 @@ export default function AcceptInviteScreen() {
       setStatus('has-house');
       return;
     }
-
-    doAccept();
-  }, [user, house]);
-
-  const doAccept = async () => {
     if (acceptAttempted.current) return;
     acceptAttempted.current = true;
     setStatus('loading');
-    const { error } = await acceptHouseInvite(teamId!, membershipId!, secret!);
-    if (error) {
-      setStatus('error');
-      setErrorMsg(error.message ?? 'Could not accept the invitation.');
-    } else {
-      setStatus('success');
-    }
-  };
 
-  const handleLeaveAndJoin = async () => {
+    acceptHouseInvite(teamId, membershipId, secret).then(({error}) => {
+      if (error) {
+        setStatus('error');
+        setErrorMsg(error.message ?? 'Could not accept the invitation.');
+      }
+      else {
+        setStatus('success');
+      }
+    }).catch(() => {})
+
+  }, [membershipId, teamId, secret, user?.$id, house, acceptAttempted, acceptHouseInvite]);
+
+  const handleLeaveAndJoin = () => {
     const action = isOwner ? 'close your current house' : 'leave your current house';
     Alert.alert(
       'Are you sure?',
@@ -76,14 +74,16 @@ export default function AcceptInviteScreen() {
         {
           text: isOwner ? 'Close & Join' : 'Leave & Join',
           style: 'destructive',
-          onPress: async () => {
+          onPress: () => {
             setLeavingHouse(true);
-            const { error } = isOwner ? await deleteHouse() : await leaveHouse();
-            setLeavingHouse(false);
-            if (error) {
-              Alert.alert('Error', error.message);
-              return;
-            }
+            const leaveFunc = isOwner ? deleteHouse : leaveHouse;
+            leaveFunc().then(({error}) => {
+              setLeavingHouse(false);
+              if (error) {
+                Alert.alert('Error', error.message);
+                return;
+              }
+            }).catch(() => {})
             // house is now null in context — the useEffect will fire and call doAccept()
           },
         },

@@ -26,10 +26,14 @@ export function ThemedButton({
   ...rest
 }: ButtonProps) {
 
-  const backgroundColor = disabled ? useThemeColor({light: lightColor, dark: darkColor}, 'disabledButtonBackground') : 
-                                     useThemeColor({light: lightColor, dark: darkColor}, 'buttonBackground')
-  const textColor = disabled ? useThemeColor({light: lightColor, dark: darkColor}, 'disabledButtonTextColor') :
-                               useThemeColor({light: lightColor, dark: darkColor}, 'disabledButtonBackground')
+  const regularBackgroundColor = useThemeColor({light: lightColor, dark: darkColor}, 'buttonBackground');
+  const disabledBackgroundColor = useThemeColor({light: lightColor, dark: darkColor}, 'disabledButtonBackground');
+
+  const regularTextColor = useThemeColor({light: lightColor, dark: darkColor}, 'disabledButtonBackground');
+  const disabledTextColor = useThemeColor({light: lightColor, dark: darkColor}, 'disabledButtonTextColor');
+
+  const backgroundColor = disabled ? disabledBackgroundColor : regularBackgroundColor
+  const textColor = disabled ? disabledTextColor : regularTextColor                               
 
   return (
     <Pressable

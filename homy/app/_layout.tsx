@@ -12,8 +12,6 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 
-SplashScreen.preventAutoHideAsync();
-
 // Custom navigation themes — these govern the background colour that React
 // Navigation paints on every card / navigator during animations. Without this,
 // the internal NavigationContainer defaults to white, causing the flashbang
@@ -63,25 +61,23 @@ export default function Root() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-floating-promises
+SplashScreen.preventAutoHideAsync();
+
 export function RootLayout() {
   const { user, authInitialized } = useAuth();
   const { house, houseInitialized } = useHouse();
-  const colorScheme = useColorScheme();
-  const backgroundColor = Colors[colorScheme ?? 'light'].background;
-
-  const ready = authInitialized && houseInitialized;
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync();
-  }, [ready]);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    if (authInitialized && houseInitialized) SplashScreen.hideAsync();
+  }, [authInitialized, houseInitialized]);
 
-  if (!ready) return null;
-
+  if (!(authInitialized && houseInitialized)) return null;
+  
   return (
     <Stack screenOptions={{
       headerShown: false,
-      contentStyle: { backgroundColor },
-      cardStyle:    { backgroundColor },
     }}>
       <Stack.Protected guard={user == null}>
         <Stack.Screen name="(auth)" />

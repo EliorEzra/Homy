@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Appearance } from "react-native";
 import { account } from "@/lib/appwrite";
 import { Models, ID } from "react-native-appwrite";
+import { UserPreferences } from "./prefs";
 
 interface SignInResponse {
   data: Models.User<Models.Preferences> | undefined;
@@ -14,21 +15,20 @@ interface SignUpResponse {
 }
 
 interface SignOutResponse {
-  error: any | undefined;
-  data: {} | undefined;
+  error: Error | undefined;
 }
 
 interface AuthContextValue {
   signIn: (e: string, p: string) => Promise<SignInResponse>;
   signUp: (e: string, p: string, n: string) => Promise<SignUpResponse>;
-  verifyEmail: (userId: string, secret: string, email: string, password: string) => Promise<SignInResponse>;
+  verifyEmail: (userId: string, secret: string) => Promise<SignInResponse>;
   resendVerification: (userId: string, email: string) => Promise<{ error?: Error }>;
   signOut: () => Promise<SignOutResponse>;
-  updateName: (name: string) => Promise<{ error?: any }>;
-  updatePassword: (newPassword: string, oldPassword: string) => Promise<{ error?: any }>;
-  updatePrefs: (prefs: Record<string, any>) => Promise<{ error?: any }>;
-  user: Models.User<Models.Preferences> | null;
-  unverifiedUser: Models.User<Models.Preferences> | null;
+  updateName: (name: string) => Promise<{ error?: Error }>;
+  updatePassword: (newPassword: string, oldPassword: string) => Promise<{ error?: Error }>;
+  updatePrefs: (prefs: UserPreferences) => Promise<{ error?: Error }>;
+  user: Models.User<UserPreferences> | null;
+  unverifiedUser: Models.User<UserPreferences> | null;
   authInitialized: boolean;
 }
 
@@ -39,9 +39,9 @@ interface ProviderProps {
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider(props: ProviderProps) {
-  const [user, setAuth] = React.useState<Models.User<Models.Preferences> | null>(null);
-  const [unverifiedUser, setUnverifiedUser] = React.useState<Models.User<Models.Preferences> | null>(null);
-  const [authInitialized, setAuthInitialized] = React.useState<boolean>(false);
+  const [user, setAuth] = useState<Models.User<UserPreferences> | null>(null);
+  const [unverifiedUser, setUnverifiedUser] = useState<Models.User<UserPreferences> | null>(null);
+  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
 
   useEffect(() => {
     (async () => {
@@ -54,8 +54,8 @@ export function AuthProvider(props: ProviderProps) {
           if (delay > 0) await new Promise(r => setTimeout(r, delay));
           fetchedUser = await account.get();
           break; // success
-        } catch (error: any) {
-          const isNetworkError = error?.message?.includes('Network request failed');
+        } catch (error) {
+          const isNetworkError = (error as Error)?.message?.includes('Network request failed');
           if (!isNetworkError || delay === delays[delays.length - 1]) {
             // Non-network error, or all retries exhausted — give up
             setAuth(null);
@@ -75,15 +75,15 @@ export function AuthProvider(props: ProviderProps) {
         }
       }
       setAuthInitialized(true);
-    })();
+    })().catch((err) => {console.log("Unexpected error occurred in fetching user", err)});
   }, []);
 
   const logout = async (): Promise<SignOutResponse> => {
     try {
-      const response = await account.deleteSession("current");
-      return { error: undefined, data: response };
+      await account.deleteSession({sessionId: "current"});
+      return { error: undefined };
     } catch (error) {
-      return { error, data: undefined };
+      return { error: error as Error };
     } finally {
       setAuth(null);
       setUnverifiedUser(null);
@@ -96,7 +96,7 @@ export function AuthProvider(props: ProviderProps) {
       // This can happen when a startup network blip causes account.get() to fail,
       // setting auth to null even though a valid session cookie is still present.
       // Silently deleting the current session first makes login always safe to call.
-      try { await account.deleteSession('current'); } catch (_) {}
+      try { await account.deleteSession({sessionId: "current"}); } catch (_) {}
       await account.createEmailPasswordSession({ email, password });
       const fetchedUser = await account.get();
       if (fetchedUser.emailVerification) {
@@ -133,10 +133,10 @@ export function AuthProvider(props: ProviderProps) {
     }
   };
 
-  const verifyEmail = async (userId: string, secret: string, email: string, password: string): Promise<SignInResponse> => {
+  const verifyEmail = async (userId: string, secret: string): Promise<SignInResponse> => {
     try {
-      try { await account.deleteSession("current"); } catch (e) {}
-      await account.createSession(userId, secret.trim());
+      try { await account.deleteSession({sessionId: "current"}); } catch (e) {}
+      await account.createSession({userId: userId, secret: secret.trim()});
       const updatedUser = await account.get();
       setAuth(updatedUser);
       setUnverifiedUser(null);
@@ -149,34 +149,34 @@ export function AuthProvider(props: ProviderProps) {
   };
 
   /** Apply the saved theme preference to Appearance so it persists across sessions. */
-  function applyThemePrefs(u: Models.User<Models.Preferences>) {
+  function applyThemePrefs(u: Models.User<UserPreferences>) {
     const theme = u.prefs?.theme as 'light' | 'dark' | undefined;
     if (theme === 'dark' || theme === 'light') Appearance.setColorScheme(theme);
   }
 
-  const updateName = async (name: string): Promise<{ error?: any }> => {
+  const updateName = async (name: string): Promise<{ error?: Error }> => {
     try {
       await account.updateName({ name });
       setAuth(prev => prev ? { ...prev, name } : null);
       return {};
-    } catch (error) { return { error }; }
+    } catch (error) { return { error: error as Error }; }
   };
 
-  const updatePassword = async (newPassword: string, oldPassword: string): Promise<{ error?: any }> => {
+  const updatePassword = async (newPassword: string, oldPassword: string): Promise<{ error?: Error }> => {
     try {
       await account.updatePassword({ password: newPassword, oldPassword });
       return {};
-    } catch (error) { return { error }; }
+    } catch (error) { return { error: error as Error }; }
   };
 
   /** Merges new keys into existing prefs so nothing is accidentally cleared. */
-  const updatePrefs = async (newPrefs: Record<string, any>): Promise<{ error?: any }> => {
+  const updatePrefs = async (newPrefs: UserPreferences): Promise<{ error?: Error }> => {
     try {
       const merged = { ...(user?.prefs ?? {}), ...newPrefs };
-      await account.updatePrefs(merged);
-      setAuth(prev => prev ? { ...prev, prefs: merged as Models.Preferences } : null);
+      await account.updatePrefs({prefs: { ...merged }});
+      setAuth(prev => prev ? { ...prev, prefs: merged } : null);
       return {};
-    } catch (error) { return { error }; }
+    } catch (error) { return { error: error as Error }; }
   };
 
   return (

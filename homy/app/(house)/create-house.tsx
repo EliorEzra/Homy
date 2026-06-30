@@ -1,4 +1,4 @@
-import { StyleSheet, Alert, View, Image, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { StyleSheet, Alert, View, Image, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, ImageSourcePropType } from "react-native";
 import { useHouse } from "@/context/house";
 import { Stack, useRouter } from "expo-router";
 import { useRef, useState } from "react";
@@ -83,7 +83,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (tags: string[
           onChangeText={handleChange}
           onSubmitEditing={() => addTag(input)}
           returnKeyType="done"
-          blurOnSubmit={false}
+          submitBehavior="blurAndSubmit"
         />
       </View>
     </View>
@@ -129,18 +129,23 @@ export default function CreateHouse() {
     else setRoles([]);
   };
 
-  const handleJoin = async () => {
+  const handleJoin = () => {
     const code = joinCode.trim();
     if (!code) { Alert.alert("Missing Code", "Please enter the invite code."); return; }
     setJoining(true);
-    const { error } = await joinHouseByCode(code);
-    setJoining(false);
-    if (error) {
-      Alert.alert("Could Not Join", error?.message ?? "Invalid or expired code.");
-    } else {
-      // Navigation is handled by useProtectedRoute once house state updates
-      router.replace("/(tabs)");
-    }
+    joinHouseByCode(code).then(({error}) => {
+      setJoining(false);
+      if (error) {
+        Alert.alert("Could Not Join", error.message ?? "Invalid or expired code.");
+      } else {
+        // Navigation is handled by useProtectedRoute once house state updates
+        router.replace("/(tabs)");
+      }
+    }).catch((err) => {
+      console.log("Unexpected error occurred in handleJoin", err)
+      console.log("Unexpected House Join Error Occurred")
+    })
+    
   };
 
   return (
@@ -150,7 +155,7 @@ export default function CreateHouse() {
         {/* Hero */}
         <View style={[styles.hero, { backgroundColor: primaryColor }]}>
           <Image
-            source={require('@/assets/images/logoHomy.png')}
+            source={require('@/assets/images/logoHomy.png') as ImageSourcePropType}
             style={styles.heroLogo}
             resizeMode="contain"
             tintColor="white"
@@ -303,19 +308,25 @@ export default function CreateHouse() {
             </ThemedCard>
 
             <ThemedButton
-              onPress={async () => {
+              onPress={() => {
                 if (!houseNameRef.current.trim()) {
                   Alert.alert("Missing Name", "Please enter a house name.");
                   return;
                 }
                 setLoading(true);
-                const { data, error } = await createHouse(houseNameRef.current.trim(), roles);
-                setLoading(false);
-                if (data) {
-                  router.replace("/(tabs)");
-                } else {
-                  Alert.alert("Error Creating House", error?.message);
-                }
+                createHouse(houseNameRef.current.trim(), roles).then(({data, error}) => {
+                  setLoading(false);
+                  if (data) {
+                    router.replace("/(tabs)");
+                  } else {
+                    
+                    Alert.alert("Error Creating House", (error as Error)?.message);
+                  }
+                }).catch((err) => {
+                  console.log("Unexpected error occurred creating a house", err)
+                  Alert.alert("Unexpected Create House Error Occurred")
+              })
+                
               }}
               title={loading ? "Creating..." : "Create House"}
               disabled={loading}

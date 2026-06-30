@@ -10,8 +10,7 @@ export default function HouseLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor },
-        cardStyle: { backgroundColor },
+        contentStyle: { backgroundColor }
       }}
     />
   );

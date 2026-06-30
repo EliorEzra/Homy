@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { databases, client } from "@/lib/appwrite";
-import { Models, ID, Permission, Role, Channel } from "react-native-appwrite";
+import { ID, Permission, Role, Channel } from "react-native-appwrite";
 import { Expense, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
 import { useHouse } from "./house";
@@ -10,35 +10,19 @@ interface ProviderProps {
 }
 
 interface ExpensesDBContextValue {
-  expenses: Models.Row[] | null;
-  addExpense: (data: Expense) => Promise<{ data?: {}; error?: Error }>;
-  deleteExpense: (expenseId: string) => Promise<{ data?: {}; error?: Error }>;
+  expenses: Expense[] | null;
+  addExpense: (data: Expense) => Promise<{ error?: Error }>;
+  deleteExpense: (expenseId: string) => Promise<{ error?: Error }>;
 }
 
 const ExpensesContext = createContext<ExpensesDBContextValue | undefined>(undefined);
 
 export function ExpensesProvider(props: ProviderProps) {
-  const [expenses, setExpenses] = useState<Models.Row[] | null>([]);
+  const [expenses, setExpenses] = useState<Expense[] | null>([]);
   const { user } = useAuth();
   const { houseTeamId } = useHouse();
 
-  async function getExpenses() {
-    try {
-      const response = await databases.listRows({
-        databaseId: DatabaseIDs.DATABASE,
-        tableId: DatabaseIDs.EXPENSES,
-      });
-      const filtered = houseTeamId
-        ? response.rows.filter((r: Models.Row) => r.team_id === houseTeamId)
-        : [];
-      setExpenses(filtered);
-    } catch (error) {
-      console.log("error fetching expenses", error);
-      setExpenses(null);
-    }
-  }
-
-  async function addExpense(data: Expense): Promise<{ data?: {}; error?: Error }> {
+  async function addExpense(data: Expense): Promise<{ error?: Error }> {
     if (!data.title) throw new Error("Expense title cannot be empty");
     try {
       if (!user) throw new Error("User must be logged in");
@@ -59,21 +43,33 @@ export function ExpensesProvider(props: ProviderProps) {
         permissions: [
           Permission.read(Role.user(user.$id)),
           Permission.write(Role.user(user.$id)),
-          // All house members can read; only the creator can write
-          ...(houseTeamId ? [Permission.read(Role.team(houseTeamId))] : []),
+          // All house members can read and write; the app's role system (usePermissions)
+          // gates edit/delete client-side, so the owner and privileged roles can act on
+          // any member's row. Without team write, only the creator could edit/delete.
+          ...(houseTeamId
+            ? [Permission.read(Role.team(houseTeamId)), Permission.write(Role.team(houseTeamId))]
+            : []),
         ],
       });
       setExpenses(prev => (prev ?? []).some(e => e.$id === rowId) ? (prev ?? []) : [
-        { $id: rowId, title: data.title, amount: data.amount ?? 0, paid_by: data.paid_by ?? "", split_with: data.split_with ?? "", date: data.date ?? new Date().toLocaleDateString(), userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row,
+        { 
+          $id: rowId, 
+          title: data.title, 
+          amount: data.amount ?? 0, 
+          paid_by: data.paid_by ?? "", 
+          split_with: data.split_with ?? "", 
+          date: data.date ?? new Date().toLocaleDateString(), 
+          userId: user.$id, 
+          team_id: houseTeamId ?? "" } as Expense,
         ...(prev ?? []),
       ]);
-      return { data: {} };
+      return {};
     } catch (error) {
       return { error: error as Error };
     }
   }
 
-  async function deleteExpense(expenseId: string): Promise<{ data?: {}; error?: Error }> {
+  async function deleteExpense(expenseId: string): Promise<{ error?: Error }> {
     try {
       await databases.deleteRow({
         databaseId: DatabaseIDs.DATABASE,
@@ -81,7 +77,7 @@ export function ExpensesProvider(props: ProviderProps) {
         rowId: expenseId,
       });
       setExpenses(prev => (prev ?? []).filter(e => e.$id !== expenseId));
-      return { data: {} };
+      return {};
     } catch (error) {
       return { error: error as Error };
     }
@@ -92,15 +88,26 @@ export function ExpensesProvider(props: ProviderProps) {
       setExpenses([]);
       return;
     }
-    getExpenses();
+    databases.listRows<Expense>({
+        databaseId: DatabaseIDs.DATABASE,
+        tableId: DatabaseIDs.EXPENSES,
+      }).then((response) => {
+        const filtered = houseTeamId
+        ? response.rows.filter((r) => r.team_id === houseTeamId)
+        : [];
+        setExpenses(filtered);
+      }).catch((error) => {
+        console.log("error fetching expenses", error);
+        setExpenses(null);
+      })
   }, [houseTeamId]);
 
   useEffect(() => {
     if (!houseTeamId) return;
     const base = Channel.tablesdb(DatabaseIDs.DATABASE).table(DatabaseIDs.EXPENSES).toString();
     const unsubscribe = client.subscribe([base, `${base}.rows`], (response) => {
-      const events = response.events as string[];
-      const payload = response.payload as Models.Row;
+      const events = response.events;
+      const payload = response.payload as Expense;
       if (!payload || payload.team_id !== houseTeamId) return;
       if (events.some(e => e.endsWith('.create'))) {
         setExpenses(prev => prev?.some(e => e.$id === payload.$id) ? prev : [payload, ...(prev ?? [])]);

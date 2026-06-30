@@ -4,6 +4,9 @@ import { DEFAULT_TAB_PERMISSION, TabPermission } from '@/context/db_models';
 
 export type TabKey = 'tasks' | 'shop' | 'finances' | 'calendar';
 
+/** Fully restricted permission — used when a role has nothing configured for a tab. */
+const LOCKED_TAB_PERMISSION: TabPermission = { canCreate: false, canEdit: false, canDelete: false };
+
 /**
  * Returns permission helpers scoped to the current user.
  *
@@ -21,11 +24,11 @@ export function usePermissions() {
   const { house, members, houseRoles, roleOrder, rolePermissions, hierarchyEnabled } = useHouse();
   const { user } = useAuth();
 
-  const isOwner = (house?.roles as string[] | undefined)?.includes('owner') ?? false;
+  const isOwner = (house?.roles)?.includes('owner') ?? false;
 
   const myMembership = members.find(m => m.userId === user?.$id);
   const myRole: string | null =
-    ((myMembership?.roles as string[] | undefined) ?? []).find(r => r !== 'owner') ?? null;
+    ((myMembership?.roles) ?? []).find(r => r !== 'owner') ?? null;
 
   // Prefer explicit roleOrder; fall back to houseRoles insertion order
   const effectiveOrder = roleOrder.length > 0 ? roleOrder : houseRoles;
@@ -40,7 +43,7 @@ export function usePermissions() {
   function rankOf(userId: string): number {
     if (!userId) return effectiveOrder.length;
     const m = members.find(mem => mem.userId === userId);
-    const role = ((m?.roles as string[] | undefined) ?? []).find(r => r !== 'owner') ?? null;
+    const role = ((m?.roles) ?? []).find(r => r !== 'owner') ?? null;
     return role !== null && effectiveOrder.includes(role)
       ? effectiveOrder.indexOf(role)
       : effectiveOrder.length;
@@ -51,11 +54,11 @@ export function usePermissions() {
     if (isOwner) return DEFAULT_TAB_PERMISSION;
     if (!myRole) {
       // No roles configured → permissive default; roles exist but no role assigned → locked
-      return houseRoles.length === 0
-        ? DEFAULT_TAB_PERMISSION
-        : { canCreate: false, canEdit: false, canDelete: false };
+      return houseRoles.length === 0 ? DEFAULT_TAB_PERMISSION : LOCKED_TAB_PERMISSION;
     }
-    return rolePermissions[myRole]?.[tab] ?? DEFAULT_TAB_PERMISSION;
+    // A role with no explicitly configured permissions for this tab is locked, not open.
+    // (A newly created role grants nothing until the owner configures it.)
+    return rolePermissions[myRole]?.[tab] ?? LOCKED_TAB_PERMISSION;
   }
 
   /** Can the current user add new items in this tab? */

@@ -1,6 +1,7 @@
 import {
   StyleSheet, Alert, View, Image, TextInput,
   KeyboardAvoidingView, Platform, ScrollView, Pressable,
+  ImageSourcePropType,
 } from "react-native";
 import { useAuth } from "@/context/auth";
 import { Stack, useRouter } from "expo-router";
@@ -36,7 +37,7 @@ export default function SignUp() {
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <View style={[styles.hero, { backgroundColor: primaryColor }]}>
           <Image
-            source={require('@/assets/images/logoHomy.png')}
+            source={require('@/assets/images/logoHomy.png') as ImageSourcePropType}
             style={styles.heroLogo}
             resizeMode="contain"
             tintColor="white"
@@ -133,7 +134,7 @@ export default function SignUp() {
             </View>
 
             <ThemedButton
-              onPress={async () => {
+              onPress={() => {
                 if (!emailRef.current || !passwordRef.current || !userNameRef.current) {
                   Alert.alert("Missing Fields", "Please fill in all fields.");
                   return;
@@ -147,16 +148,21 @@ export default function SignUp() {
                   return;
                 }
                 setLoading(true);
-                const { data, error } = await signUp(emailRef.current, passwordRef.current, userNameRef.current);
-                setLoading(false);
-                if (data) {
-                  router.push({
-                    pathname: "/verify-email",
-                    params: { userId: data.userId, email: data.email, password: passwordRef.current },
-                  });
-                } else {
-                  Alert.alert("Sign Up Error", error?.message);
-                }
+                signUp(emailRef.current, passwordRef.current, userNameRef.current).then(({data, error}) => {
+                  setLoading(false);
+                  if (data) {
+                    router.push({
+                      pathname: "/verify-email",
+                      params: { userId: data.userId, email: data.email, password: passwordRef.current },
+                    });
+                  } else {
+                    Alert.alert("Sign Up Error", error?.message);
+                  }
+                }).catch((err) => {
+                  console.log("Unexpected error caught in sign up", err);
+                  Alert.alert("Unexpected Sign Up Error Occurred");
+                })
+                
               }}
               title={loading ? "Creating account…" : "Create Account"}
               disabled={loading}

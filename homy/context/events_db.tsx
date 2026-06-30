@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { databases, client } from "@/lib/appwrite";
-import { Models, ID, Permission, Role, Channel } from "react-native-appwrite";
+import { ID, Permission, Role, Channel } from "react-native-appwrite";
 import { CalEvent, DatabaseIDs } from "./db_models";
 import { useAuth } from "./auth";
 import { useHouse } from "./house";
@@ -10,41 +10,25 @@ interface ProviderProps {
 }
 
 interface EventsDBContextValue {
-  addEvent: (data: CalEvent, permissions: string[]) => Promise<{ error?: any; data?: {} }>;
-  updateEvent: (eventId: string, data: Partial<CalEvent>) => Promise<{ error?: any; data?: {} }>;
-  deleteEvent: (eventId: string) => Promise<{ error?: any; data?: {} }>;
-  events: Models.Row[] | null;
+  addEvent: (data: CalEvent, permissions: string[]) => Promise<{ error?: Error }>;
+  updateEvent: (eventId: string, data: Partial<CalEvent>) => Promise<{ error?: Error }>;
+  deleteEvent: (eventId: string) => Promise<{ error?: Error }>;
+  events: CalEvent[] | null;
 }
 
 const EventsContext = createContext<EventsDBContextValue | undefined>(undefined);
 
 export function EventsProvider(props: ProviderProps) {
-  const [events, setEvents] = useState<Models.Row[] | null>([]);
+  const [events, setEvents] = useState<CalEvent[] | null>([]);
   const { user } = useAuth();
   const { houseTeamId } = useHouse();
 
-  async function getEvents() {
-    try {
-      const response = await databases.listRows({
-        databaseId: DatabaseIDs.DATABASE,
-        tableId: DatabaseIDs.EVENTS,
-      });
-      const filtered = houseTeamId
-        ? response.rows.filter((r: Models.Row) => r.team_id === houseTeamId)
-        : [];
-      setEvents(filtered);
-    } catch (error) {
-      console.log("error fetching events", error);
-      setEvents(null);
-    }
-  }
-
-  async function addEvent(data: CalEvent, permissions: string[]): Promise<addEventResponse> {
+  async function addEvent(data: CalEvent, permissions: string[]): Promise<{ error?: Error }> {
     if (!data.title) throw new Error("Event title cannot be empty");
     try {
       if (user === null) throw new Error("User must be logged in before creating events");
       const rowId = ID.unique();
-      await databases.createRow({
+      await databases.createRow<CalEvent>({
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.EVENTS,
         rowId,
@@ -60,34 +44,48 @@ export function EventsProvider(props: ProviderProps) {
         permissions: [
           Permission.read(Role.user(user.$id)),
           Permission.write(Role.user(user.$id)),
-          // All house members can read; only the creator can write
-          ...(houseTeamId ? [Permission.read(Role.team(houseTeamId))] : []),
+          // All house members can read and write; the app's role system (usePermissions)
+          // gates edit/delete client-side, so the owner and privileged roles can act on
+          // any member's row. Without team write, only the creator could edit/delete.
+          ...(houseTeamId
+            ? [Permission.read(Role.team(houseTeamId)), Permission.write(Role.team(houseTeamId))]
+            : []),
           ...permissions,
         ],
       });
-      setEvents(prev => (prev ?? []).some(e => e.$id === rowId) ? (prev ?? []) : [...(prev ?? []), { $id: rowId, title: data.title, date: data.date ?? "", time: data.time ?? "", description: data.description ?? "", assigned_to: data.assigned_to ?? "", userId: user.$id, team_id: houseTeamId ?? "" } as Models.Row]);
-      return { data: {}, error: undefined };
+      setEvents(prev => (prev ?? []).some(e => e.$id === rowId) ? (prev ?? []) : [...(prev ?? []), 
+      { 
+        $id: rowId, 
+        title: data.title, 
+        date: data.date ?? "", 
+        time: data.time ?? "", 
+        description: data.description ?? "", 
+        assigned_to: data.assigned_to ?? "", 
+        userId: user.$id, 
+        team_id: houseTeamId ?? "" 
+      } as CalEvent]);
+      return {};
     } catch (error) {
-      return { data: undefined, error: error as Error };
+      return { error: error as Error };
     }
   }
 
-  async function updateEvent(eventId: string, data: Partial<CalEvent>): Promise<{ error?: any; data?: {} }> {
+  async function updateEvent(eventId: string, data: Partial<CalEvent>): Promise<{ error?: Error }> {
     try {
-      await databases.updateRow({
+      await databases.updateRow<CalEvent>({
         databaseId: DatabaseIDs.DATABASE,
         tableId: DatabaseIDs.EVENTS,
         rowId: eventId,
         data,
       });
       setEvents(prev => (prev ?? []).map(e => e.$id === eventId ? { ...e, ...data } : e));
-      return { data: {} };
+      return {};
     } catch (error) {
-      return { error };
+      return { error: error as Error };
     }
   }
 
-  async function deleteEvent(eventId: string): Promise<{ error?: any; data?: {} }> {
+  async function deleteEvent(eventId: string): Promise<{ error?: Error }> {
     try {
       await databases.deleteRow({
         databaseId: DatabaseIDs.DATABASE,
@@ -95,9 +93,9 @@ export function EventsProvider(props: ProviderProps) {
         rowId: eventId,
       });
       setEvents(prev => (prev ?? []).filter(e => e.$id !== eventId));
-      return { data: {}, error: undefined };
+      return {};
     } catch (error) {
-      return { data: undefined, error: error as Error };
+      return { error: error as Error };
     }
   }
 
@@ -106,8 +104,19 @@ export function EventsProvider(props: ProviderProps) {
       setEvents([]);
       return;
     }
-    (async () => {
-      await getEvents();
+    (() => {
+      databases.listRows<CalEvent>({
+        databaseId: DatabaseIDs.DATABASE,
+        tableId: DatabaseIDs.EVENTS,
+      }).then((response) => {
+        const filtered = houseTeamId
+        ? response.rows.filter((r: CalEvent) => r.team_id === houseTeamId)
+        : [];
+        setEvents(filtered);
+      }).catch((error) => {
+        console.log("error fetching events", error);
+        setEvents(null);
+      })
     })();
   }, [houseTeamId]);
 
@@ -115,8 +124,8 @@ export function EventsProvider(props: ProviderProps) {
     if (!houseTeamId) return;
     const base = Channel.tablesdb(DatabaseIDs.DATABASE).table(DatabaseIDs.EVENTS).toString();
     const unsubscribe = client.subscribe([base, `${base}.rows`], (response) => {
-      const events = response.events as string[];
-      const payload = response.payload as Models.Row;
+      const events = response.events;
+      const payload = response.payload as CalEvent;
       if (!payload || payload.team_id !== houseTeamId) return;
       if (events.some(e => e.endsWith('.create'))) {
         setEvents(prev => prev?.some(ev => ev.$id === payload.$id) ? prev : [...(prev ?? []), payload]);

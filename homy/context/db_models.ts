@@ -1,3 +1,5 @@
+import { Models } from "react-native-appwrite";
+
 // ─── Role permission types ────────────────────────────────────────────────────
 export type TabPermission = {
   canCreate: boolean;
@@ -31,7 +33,7 @@ export const DatabaseIDs = {
     JOIN_REQUESTS: 'join_requests',
 }
 
-export type Task = {
+export type Task = Models.Row & {
     task_text?: string;
     description?: string;
     due_date?: string;
@@ -42,7 +44,7 @@ export type Task = {
     team_id?: string;
 }
 
-export type CalEvent = {
+export type CalEvent = Models.Row & {
     title?: string;
     date?: string;
     time?: string;
@@ -52,7 +54,7 @@ export type CalEvent = {
     team_id?: string;
 }
 
-export type ShopItem = {
+export type ShopItem = Models.Row & {
     name?: string;
     quantity?: string;
     category?: string;
@@ -61,7 +63,7 @@ export type ShopItem = {
     team_id?: string;
 }
 
-export type Expense = {
+export type Expense = Models.Row & {
     title?: string;
     amount?: number;
     paid_by?: string;

@@ -11,7 +11,7 @@ import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, X } from 'lucide-react
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useShop } from '@/context/shop_db';
 import { usePermissions } from '@/hooks/use-permissions';
-import { Models } from 'react-native-appwrite';
+import { ShopItem } from '@/context/db_models';
 
 type Category = 'Produce' | 'Dairy' | 'Meat' | 'Bakery' | 'Frozen' | 'Drinks' | 'Other';
 const CATEGORIES: Category[] = ['Produce', 'Dairy', 'Meat', 'Bakery', 'Frozen', 'Drinks', 'Other'];
@@ -41,25 +41,29 @@ export default function ShopScreen() {
     filter === 'pending' ? !i.checked : filter === 'done' ? i.checked : true
   );
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     if (!newName.trim()) return;
-    const { error } = await addShopItem({ name: newName.trim(), quantity: newQty.trim() || '1', category: newCategory, checked: false });
-    if (error) { Alert.alert("Error", error.message); return; }
+    addShopItem({ name: newName.trim(), quantity: newQty.trim() || '1', category: newCategory, checked: false } as ShopItem)
+    .then(({error}) => {
+      if (error) { Alert.alert("Error", error.message); return; }
+    }).catch(() => {})
     setNewName(''); setNewQty(''); setNewCategory('Other'); setAdding(false);
   };
 
-  const handleToggle = async (item: Models.Row) => {
-    const { error } = await updateShopItem(item.$id, { checked: !item.checked });
-    if (error) Alert.alert("Error", error.message);
+  const handleToggle = (item: ShopItem) => {
+    updateShopItem(item.$id, { checked: !item.checked }).then(({error}) => {
+      if (error) Alert.alert("Error", error.message);
+    }).catch(() => {})
   };
 
-  const handleDelete = async (itemId: string) => {
-    const { error } = await deleteShopItem(itemId);
-    if (error) Alert.alert("Error", error.message);
+  const handleDelete = (itemId: string) => {
+    deleteShopItem(itemId).then(({error}) => {
+      if (error) Alert.alert("Error", error.message);
+    }).catch(() => {})
   };
 
-  const handleClearCompleted = async () => {
-    await clearCompleted();
+  const handleClearCompleted = () => {
+    clearCompleted().catch(() => {});
   };
 
   return (
@@ -158,7 +162,7 @@ export default function ShopScreen() {
                       label={item.category as string}
                       variant="primary"
                       size="sm"
-                      style={{ backgroundColor: `${CATEGORY_COLORS[item.category as Category] ?? '#6b7280'}20` } as any}
+                      style={{ backgroundColor: `${CATEGORY_COLORS[item.category as Category] ?? '#6b7280'}20` }}
                     />
                   </View>
                 </View>

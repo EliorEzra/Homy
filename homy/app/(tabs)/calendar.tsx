@@ -13,6 +13,7 @@ import { useAuth } from '@/context/auth';
 import { usePermissions } from '@/hooks/use-permissions';
 import { Models } from 'react-native-appwrite';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { CalEvent } from '@/context/db_models';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -41,7 +42,7 @@ export default function CalendarScreen() {
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState(toDateStr(now.getFullYear(), now.getMonth(), now.getDate()));
   const { events, addEvent, updateEvent, deleteEvent } = useEvents();
-  const { members, house } = useHouse();
+  const { members } = useHouse();
   const { user } = useAuth();
 
   // Form state
@@ -61,7 +62,6 @@ export default function CalendarScreen() {
   const mutedColor = useThemeColor({}, 'tabIconDefault');
   const textColor = useThemeColor({}, 'text');
 
-  const isOwner = house?.roles?.includes('owner') ?? false;
   const { canCreate, canEdit, canDelete } = usePermissions();
   const todayStr = toDateStr(now.getFullYear(), now.getMonth(), now.getDate());
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
@@ -78,7 +78,7 @@ export default function CalendarScreen() {
 
   const visibleEvents = events ?? [];
 
-  const eventsByDate = visibleEvents.reduce<Record<string, Models.Row[]>>((acc, e) => {
+  const eventsByDate = visibleEvents.reduce<Record<string, CalEvent[]>>((acc, e) => {
     const d = e.date as string;
     acc[d] = acc[d] ? [...acc[d], e] : [e];
     return acc;
@@ -94,8 +94,8 @@ export default function CalendarScreen() {
     return m ? (m.userName || m.userEmail?.split('@')[0] || userId.slice(0, 6)) : userId.slice(0, 6);
   };
 
-  const getAttendeesLabel = (row: Models.Row) => {
-    const ids = row.assigned_to ? (row.assigned_to as string).split(',').filter(Boolean) : [];
+  const getAttendeesLabel = (row: CalEvent) => {
+    const ids = row.assigned_to ? (row.assigned_to).split(',').filter(Boolean) : [];
     if (ids.length === 0) return 'All members';
     return ids.map(getMemberLabel).join(', ');
   };
@@ -107,12 +107,12 @@ export default function CalendarScreen() {
     setFormVisible(true);
   };
 
-  const openEditForm = (event: Models.Row) => {
+  const openEditForm = (event: CalEvent) => {
     setEditingEvent(event);
-    setNewTitle(event.title as string ?? '');
-    setNewDesc(event.description as string ?? '');
-    setNewTime(timeStrToDate(event.time as string ?? '00:00'));
-    setAssignedTo(event.assigned_to ? (event.assigned_to as string).split(',').filter(Boolean) : []);
+    setNewTitle(event.title ?? '');
+    setNewDesc(event.description ?? '');
+    setNewTime(timeStrToDate(event.time ?? '00:00'));
+    setAssignedTo(event.assigned_to ? event.assigned_to.split(',').filter(Boolean) : []);
     setShowTimePicker(false); setShowIOSTimePicker(false);
     setFormVisible(true);
   };
@@ -122,7 +122,7 @@ export default function CalendarScreen() {
     setEditingEvent(null);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!newTitle.trim()) return;
     setSaving(true);
     const payload = {
@@ -130,17 +130,25 @@ export default function CalendarScreen() {
       time: toTimeStr(newTime),
       description: newDesc.trim(),
       assigned_to: assignedTo.length > 0 ? assignedTo.join(',') : '',
-    };
+    } as CalEvent;
 
-    let error: any;
     if (editingEvent) {
-      ({ error } = await updateEvent(editingEvent.$id, payload));
+      updateEvent(editingEvent.$id, payload).then(({error}) => {
+        setSaving(false);
+        if (error) {
+          Alert.alert("Error", error?.message ?? "Could not save event."); 
+          return;
+        }
+      }).catch(() => {})
     } else {
-      ({ error } = await addEvent({ ...payload, date: selectedDate }, []));
+      addEvent({ ...payload, date: selectedDate }, []).then(({error}) => {
+        setSaving(false);
+        if (error) {
+          Alert.alert("Error", error?.message ?? "Could not save event."); 
+          return;
+        }
+      }).catch(() => {})
     }
-
-    setSaving(false);
-    if (error) { Alert.alert("Error", error?.message ?? "Could not save event."); return; }
     closeForm();
   };
 
@@ -149,7 +157,7 @@ export default function CalendarScreen() {
     if (selected) setNewTime(selected);
   };
 
-  const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  const cells: (number | null)[] = [...Array(firstDay).fill(null) as (number | null)[], ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
 
   return (
     <FadeScreen>
@@ -236,7 +244,7 @@ export default function CalendarScreen() {
                     <ThemedText style={[styles.eventTime, { color: mutedColor }]}>{formatTime(event.time as string)}</ThemedText>
                   </View>
                   <ThemedText style={styles.eventTitle}>{event.title as string}</ThemedText>
-                  {event.description ? <ThemedText style={[styles.eventDesc, { color: mutedColor }]}>{event.description as string}</ThemedText> : null}
+                  {event.description ? <ThemedText style={[styles.eventDesc, { color: mutedColor }]}>{event.description}</ThemedText> : null}
                   <View style={styles.eventAttendeesRow}>
                     <User size={11} color={mutedColor} />
                     <ThemedText style={[styles.eventAttendees, { color: mutedColor }]}>{getAttendeesLabel(event)}</ThemedText>
@@ -249,7 +257,10 @@ export default function CalendarScreen() {
                     </Pressable>
                   )}
                   {canDelete('calendar', event.userId as string) && (
-                    <Pressable onPress={() => deleteEvent(event.$id)} hitSlop={8} style={styles.actionBtn}>
+                    <Pressable onPress={
+                        () => {deleteEvent(event.$id).catch(() => {})}
+                      }
+                      hitSlop={8} style={styles.actionBtn}>
                       <Trash2 size={15} color="#e03040" />
                     </Pressable>
                   )}

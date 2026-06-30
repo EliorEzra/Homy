@@ -12,13 +12,17 @@ import { useAuth } from "@/context/auth";
 import { X, Calendar, Clock, User } from 'lucide-react-native';
 
 export type TaskFormData = {
-  title: string; description: string; dueDate: string;
+  title: string; 
+  description: string; 
+  dueDate: string;
   status: "todo" | "in-progress" | "done";
   assignedTo: string[]; // array of userIds
 }
 
 export type TaskFormProps = {
-  visible: boolean; initialData?: TaskFormData; isEditing?: boolean;
+  visible: boolean; 
+  initialData?: TaskFormData; 
+  isEditing?: boolean;
   members?: Models.Membership[];
   onSubmit: (data: TaskFormData) => void; onClose: () => void;
 }
@@ -29,10 +33,6 @@ function formatDate(date: Date) {
 
 function formatTime(date: Date) {
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-}
-
-function formatFull(date: Date) {
-  return `${formatDate(date)} · ${formatTime(date)}`;
 }
 
 function parseDueDate(str: string): Date {

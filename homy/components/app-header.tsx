@@ -1,4 +1,4 @@
-import { View, Image, Pressable, StyleSheet, Text, useColorScheme } from 'react-native';
+import { View, Image, Pressable, StyleSheet, Text, useColorScheme, ImageSourcePropType } from 'react-native';
 import { ThemedView } from './themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useRouter } from 'expo-router';
@@ -14,7 +14,7 @@ export function AppHeader() {
   return (
     <ThemedView style={styles.header}>
       <Image
-        source={require('@/assets/images/logoHomy.png')}
+        source={require('@/assets/images/logoHomy.png') as ImageSourcePropType}
         style={[styles.logo, isDark && { tintColor: '#ffffff' }]}
         resizeMode="contain"
       />
