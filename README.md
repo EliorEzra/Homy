@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/gist/assets/homy-logo-placeholder.png" alt="HOMY Logo" width="120" style="border-radius: 20%;">
+  <img src="https://github.com/user-attachments/assets/6d5b2138-585a-4897-887f-7b3eb360dfa2" alt="HOMY Logo" width="120" style="border-radius: 20%;">
   <h1>HOMY — Household Management App</h1>
 
   <img src="https://img.shields.io/badge/React_Native-v0.74+-61DAFB?logo=react&logoColor=black&style=for-the-badge" alt="React Native">
